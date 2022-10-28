@@ -1,0 +1,102 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &7443959410955126217
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7443959410955126215}
+  - component: {fileID: 7443959410955126216}
+  - component: {fileID: 566467473835060054}
+  m_Layer: 0
+  m_Name: Lava Lamp Baker
+  m_TagString: Untagged
+  m_Icon: {fileID: -1412012063857583412, guid: 0000000000000000d000000000000000, type: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7443959410955126215
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7443959410955126217}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7443959410955126216
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7443959410955126217}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1dd98e73f6055542bed15dc2f8bb82e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mPixelSize: 0.02
+  mPadding: 0.04
+  mShrinkWrapRadius: 0
+  mTargetObject: {fileID: 0}
+  mTargetRendererInfos: []
+  mWeldMeshShader: {fileID: 4800000, guid: 343d20b54d9262e46ac079c9f317adbd, type: 3}
+  mDistanceFieldGenerationShader: {fileID: 7200000, guid: 52e365abaa939dc4f80631d655a568e2,
+    type: 3}
+  mUnsignedToSignedConversionShader: {fileID: 7200000, guid: af410c0095c0d984eb239b4f4e6c7a40,
+    type: 3}
+  mExpandDistanceFieldShader: {fileID: 7200000, guid: ed931beb693ca2944937c79a322bcdc7,
+    type: 3}
+  mCopyDistanceFieldSliceShader: {fileID: 7200000, guid: f672bb4364c4881419ef840ee108dff8,
+    type: 3}
+  mMeshVisualizationShader: {fileID: 4800000, guid: b04d72d9b8fa4b4458784a227d5a8d8b,
+    type: 3}
+  _SdfVisualizationShader: {fileID: 4800000, guid: 723a59e72f424ee43ad769436415db19,
+    type: 3}
+--- !u!114 &566467473835060054
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7443959410955126217}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1502f2f137fe3b045abb0bad689e8a02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  mTargetObject: {fileID: 0}
+  mTargetRenderer: {fileID: 0}
+  mTargetMesh: {fileID: 0}
+  mMaskTexture: {fileID: 0}
+  mMaskColorCount: 1
+  mMaskColors:
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  - {r: 1, g: 1, b: 1, a: 1}
+  mInvalidMaskColor: {r: 0, g: 0, b: 0, a: 1}
+  mBakeBindDataShader: {fileID: 4800000, guid: ddacd5efbddc0634cb008fee714d968d, type: 3}
+  mVisualizationShader: {fileID: 4800000, guid: c3e80acdaa454674b9734b1198c6fd2a,
+    type: 3}

@@ -1,0 +1,61 @@
+﻿#pragma kernel CSMain
+
+float _PixelSize;
+float3 _TextureDimensions;
+float3 _PixelOffset;
+
+RWTexture3D<float> _Input;
+RWTexture3D<float> _Output;
+
+[numthreads(4, 4, 4)]
+void CSMain(uint3 dispatchThreadID : SV_DispatchThreadID)
+{
+    int3 targetPixel = dispatchThreadID + _PixelOffset;
+    
+    if (any(targetPixel >= _TextureDimensions))
+    {
+        return;
+    }
+    
+    float distanceValue = _Input[targetPixel];
+    
+    [branch]
+    if (distanceValue >= 0.0 || any(targetPixel == 0.0.xxx) || any(targetPixel == (_TextureDimensions - 1)))
+    {
+        //if this pixel on the edge of the SDF, always set it to be on the outside of the surface (i.e. positive)
+        //also skip the work for pixels that are already positive
+        distanceValue = abs(distanceValue);
+
+    }
+    else
+    {
+        //iterate over the 3x3x3 neighborhood
+        for(int z = -1; z <= 1; z++)
+        {
+            for(int y = -1; y <= 1; y++)
+            {
+                for(int x = -1; x <= 1; x++)
+                {
+                    //skip the target pixel
+                    if(x == 0 && y == 0 && z == 0)
+                    {
+                        continue;
+                    }
+                    
+                    float neighborDistanceValue = _Input[targetPixel + int3(x, y, z)];
+                    float distanceToNeighbor = sqrt(abs(x) + abs(y) + abs(z)) * _PixelSize;
+                    
+                    //if the neighbor is considered on the outside of the surface (i.e. positive)
+                    //and the distance betwee this pixel and the neighbor is greater than the actual physical distance between them
+                    //then this pixel should also be on the outside
+                    if (neighborDistanceValue > 0.0 && (neighborDistanceValue - distanceValue) > (distanceToNeighbor + 0.000001))
+                    {
+                        distanceValue = abs(distanceValue);
+                    }
+                }
+            }
+        }
+    }
+    
+    _Output[targetPixel] = distanceValue;
+}

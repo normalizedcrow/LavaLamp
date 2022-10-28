@@ -1,0 +1,20 @@
+﻿#pragma kernel CSMain
+
+float3 _TextureDimensions;
+int _DepthSlice;
+
+RWTexture3D<float> _Input;
+RWTexture2D<float4> _Output;
+
+[numthreads(32, 32, 1)]
+void CSMain(uint2 dispatchThreadID : SV_DispatchThreadID)
+{
+    int3 targetPixel = int3(dispatchThreadID, _DepthSlice);
+    
+    if (any(targetPixel >= _TextureDimensions))
+    {
+        return;
+    }
+    
+    _Output[targetPixel.xy] = _Input[targetPixel];
+}

@@ -1,0 +1,147 @@
+﻿#pragma kernel GetExpandedSurface
+#pragma kernel RecalculateDistance
+
+struct SurfaceCell
+{
+    int3 location;
+    float4 samples[2];
+};
+
+float _PixelSize;
+float3 _TextureDimensions;
+float3 _PixelOffset;
+float _ExpansionSize;
+
+int _TotalCellCount;
+int _CellOffset;
+
+RWTexture3D<float> _Input;
+RWTexture3D<float> _Output;
+
+RWStructuredBuffer<SurfaceCell> _ExpandedSurfaceCells;
+RWStructuredBuffer<int> _ExpandedSurfaceCellCount;
+
+groupshared int cellCount[1];
+
+[numthreads(4, 4, 4)]
+void GetExpandedSurface(uint groupIndex : SV_GroupIndex, uint3 dispatchThreadID : SV_DispatchThreadID)
+{
+    [branch]
+    if (groupIndex == 0)
+    {
+        cellCount[0] = 0;
+    }
+    
+    //get the distance values from all the pixels in a 2x2x2 cube
+    int3 sourceTexelCube = dispatchThreadID + _PixelOffset;
+    bool isTexelValid = all(sourceTexelCube < (_TextureDimensions - 1));
+    
+    float4 samplesA = float4(_Input[sourceTexelCube + int3(0, 0, 0)], _Input[sourceTexelCube + int3(1, 0, 0)],
+                             _Input[sourceTexelCube + int3(0, 1, 0)], _Input[sourceTexelCube + int3(1, 1, 0)]);
+    
+    float4 samplesB = float4(_Input[sourceTexelCube + int3(0, 0, 1)], _Input[sourceTexelCube + int3(1, 0, 1)],
+                             _Input[sourceTexelCube + int3(0, 1, 1)], _Input[sourceTexelCube + int3(1, 1, 1)]);
+    
+    //expand the surface
+    samplesA -= _ExpansionSize;
+    samplesB -= _ExpansionSize;
+    
+    //if there are both positive and negative values (or any zero values) then this cell contains a surface  
+    bool containsSurface = isTexelValid && (any(samplesA >= 0) || any(samplesB >= 0)) && (any(samplesA <= 0) || any(samplesB <= 0));
+    
+    //sync to make sure cellCount was initilized
+    GroupMemoryBarrierWithGroupSync();
+    
+    //find local offset we are writing to within this work group
+    int writeIndex = 0;
+    
+    [branch]
+    if (containsSurface)
+    {
+        InterlockedAdd(cellCount[0], 1, writeIndex);
+    }
+    
+    //wait until every thread has added its cell
+    GroupMemoryBarrierWithGroupSync();
+    
+    //have the first thread in the group find the global output index for this group and write it back into cellCount
+    [branch]
+    if (groupIndex == 0)
+    {
+        int totalCellsFound = cellCount[0];
+        
+        int globalWriteOffset;
+        InterlockedAdd(_ExpandedSurfaceCellCount[0], totalCellsFound, globalWriteOffset);
+        cellCount[0] = globalWriteOffset;
+    }
+    
+    //wait until that is done
+    GroupMemoryBarrierWithGroupSync();
+
+    //pull in the global offset from groupshared and add it to the local offset
+    writeIndex += cellCount[0];
+    
+    //write out the cell to the buffer if this thread's cell intersected the expanded surface
+    [branch]
+    if (containsSurface)
+    {
+        SurfaceCell outputCell;
+        outputCell.location = sourceTexelCube;
+        outputCell.samples[0] = samplesA;
+        outputCell.samples[1] = samplesB;
+        
+        _ExpandedSurfaceCells[writeIndex] = outputCell;
+    }
+}
+
+[numthreads(4, 4, 4)]
+void RecalculateDistance(uint3 dispatchThreadID : SV_DispatchThreadID)
+{
+    int3 targetPixel = dispatchThreadID + _PixelOffset;
+    
+    if (any(targetPixel >= _TextureDimensions))
+    {
+        return;
+    }
+    
+    //the sign of the recalculated distance to the expanded surface will be the same, only the magnitude will change
+    float finalSign = sign(_Input[targetPixel] - _ExpansionSize);
+
+    //on the first iteration set the distance to be arbitrarily far away, otherwise get the closest distance from the last iteration
+    float distaceToSurface = (_CellOffset == 0) ? 10000000.0 : abs(_Output[targetPixel] - _ExpansionSize);
+
+    //iterate over every cached cell of the expanded surface in blocks of 1024
+    [loop]
+    for (int cellIndex = 0; (cellIndex < 1024) && ((cellIndex + _CellOffset) < _TotalCellCount); cellIndex++)
+    {
+        SurfaceCell cell = _ExpandedSurfaceCells[cellIndex + _CellOffset];
+        
+        float3 lowerCornerPixelDistance = cell.location - targetPixel;
+        float averageDistance = 0.0;
+        
+        //iterate over the samples in all 8 corners of the cell
+        for (uint sampleIndex = 0; sampleIndex < 8; sampleIndex++)
+        {
+            int3 cellPixelIndex = int3(sampleIndex % 2, (sampleIndex / 2) % 2, sampleIndex / 4);
+            float currentSample = cell.samples[sampleIndex / 4][sampleIndex % 4];
+
+            float3 cornerPixelDistance = lowerCornerPixelDistance + cellPixelIndex;
+            float newDistance = (length(cornerPixelDistance) * _PixelSize) + (currentSample * finalSign);
+
+            averageDistance += newDistance / 8.0;
+            
+            //if we actually found a sample for this pixel directly just use that
+            if (all((cell.location + cellPixelIndex) == targetPixel))
+            {
+                averageDistance = abs(currentSample);
+                break;
+            }
+        }
+        
+        //get the minimum distance across every cell tested
+        distaceToSurface = min(distaceToSurface, averageDistance);
+    }
+    
+    distaceToSurface = max(0.0, distaceToSurface) * finalSign;
+    _Output[targetPixel] = distaceToSurface + _ExpansionSize; //unexpand the suface
+}
