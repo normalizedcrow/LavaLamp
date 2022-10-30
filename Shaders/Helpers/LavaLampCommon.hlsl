@@ -231,7 +231,7 @@ struct LavaLampBasePixelInput
     float4 worldTangent : TEXCOORD3;
     float3 bindPosition : TEXCOORD4;
     float3 bindNormal : TEXCOORD5;
-    float3 bindTangent : TEXCOORD6;
+    float4 bindTangent : TEXCOORD6;
     nointerpolation uint lavaIndex : TEXCOORD7;
     UNITY_FOG_COORDS(8)
 #ifdef LAVA_LAMP_USE_LIGHTING
@@ -290,7 +290,7 @@ LavaLampBasePixelInput LavaLampBaseVertexShader(LavaLampVertex vertex)
         output.lavaIndex = positionAndLavaIndex.w;
 
         output.bindNormal = _VertexBindNormals[vertexBakeCoord].xyz;
-        output.bindTangent = _VertexBindTangents[vertexBakeCoord].xyz;
+        output.bindTangent = _VertexBindTangents[vertexBakeCoord];
         
         //if the index is invalid just throw out this vertex
         if (positionAndLavaIndex.w >= NUM_LAVA_LAMP_SUBREGIONS)
@@ -303,7 +303,7 @@ LavaLampBasePixelInput LavaLampBaseVertexShader(LavaLampVertex vertex)
         //if there is no bind data, use object space instead
         output.bindPosition = vertex.position;
         output.bindNormal = vertex.normal;
-        output.bindTangent = vertex.tangent.xyz;
+        output.bindTangent = vertex.tangent;
         output.lavaIndex = 0;
     }
     
@@ -406,7 +406,7 @@ float4 LavaLampBasePixelShader(LavaLampBasePixelInput input, bool isFrontFace : 
     };
 
     //convert trace direction to bind pos space
-    float3 bindBitangent = cross(input.bindNormal, input.bindTangent) * input.worldTangent.w;
+    float3 bindBitangent = cross(input.bindNormal, input.bindTangent) * input.bindTangent.w;
 
     float3 traceDirection = (tangentTraceDirection.x * input.bindTangent)
                           + (tangentTraceDirection.y * input.bindNormal)
