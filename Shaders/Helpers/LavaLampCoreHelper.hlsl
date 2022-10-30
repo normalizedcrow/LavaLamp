@@ -6,7 +6,6 @@ static const float cBlobLayerJitterScale = 0.6;
 static const float cLavaRaymarchMaxSteps = 100;
 static const float cLavaRaymarchMinStepLength = 0.01;
 static const float cNormalEPS = 0.05;
-static const float cLavaTouchingSideBlendWidth = 0.01;
 
 #include "LavaLampLightingHelper.hlsl"
 
@@ -26,6 +25,7 @@ float _LavaMaxDriftSpeed;
 float _LavaReflectiveness;
 float _LavaPerceptualRoughness;
 float _LavaSoftDepthSize;
+float _LavaTouchingSideBlendSize;
 
 //Structs -----------------------------------------------------------------------------------------
 
@@ -281,7 +281,7 @@ LavaSurfaceParameters GetLavaSurfaceParameters(float3 startPosition, float3 marc
 
     //account for the rounded shape of the blob in the thickness, just assume the thickness is the radius when the blob touches the side
     float sphereThickness = saturate(dot(normal, -marchDirection)) * 2.0;
-    float touchingSideFactor = smoothstep(1.0, 0.0, saturate(hitDistance / cLavaTouchingSideBlendWidth));
+    float touchingSideFactor = smoothstep(1.0, 0.0, saturate(hitDistance / _LavaTouchingSideBlendSize));
     float thickness = radius * lerp(sphereThickness * thicknessBlendScale, 1.0, touchingSideFactor);
 
     //determine how much the blobs are blending into the reservoirs

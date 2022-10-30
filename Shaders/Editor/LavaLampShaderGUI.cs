@@ -47,6 +47,7 @@ namespace UnityEditor
             public MaterialProperty lavaReflectiveness;
             public MaterialProperty lavaPerceptualRoughness;
             public MaterialProperty lavaSoftDepthSize;
+            public MaterialProperty lavaTouchingSideBlendSize;
 
             public MaterialProperty vertexBindPositions;
             public MaterialProperty vertexBindNormals;
@@ -60,12 +61,13 @@ namespace UnityEditor
             public MaterialProperty minThickness;
 
             public MaterialProperty lavaSubregionCount;
+            public MaterialProperty cullMode;
+            public MaterialProperty depthOffset;
             public MaterialProperty toggleLighting;
             public MaterialProperty toggleTransparency;
             public MaterialProperty toggleDepthIntersection;
             public MaterialProperty writeDepth;
-            public MaterialProperty depthOffset;
-
+            
             public LavaSubregionProperties[] subregions;
 
             public Properties(MaterialProperty[] props)
@@ -95,6 +97,7 @@ namespace UnityEditor
                 lavaReflectiveness = FindProperty("_LavaReflectiveness", props);
                 lavaPerceptualRoughness = FindProperty("_LavaPerceptualRoughness", props);
                 lavaSoftDepthSize = FindProperty("_LavaSoftDepthSize", props);
+                lavaTouchingSideBlendSize = FindProperty("_LavaTouchingSideBlendSize", props);
 
                 vertexBindPositions = FindProperty("_VertexBindPositions", props);
                 vertexBindNormals = FindProperty("_VertexBindNormals", props);
@@ -108,12 +111,13 @@ namespace UnityEditor
                 minThickness = FindProperty("_MinThickness", props);
 
                 lavaSubregionCount = FindProperty("_LavaSubregionCount", props);
+                cullMode = FindProperty("_CullMode", props);
+                depthOffset = FindProperty("_DepthOffset", props);
                 toggleLighting = FindProperty("_Lighting_Toggle", props);
                 toggleTransparency = FindProperty("_Transparency_Toggle", props);
                 toggleDepthIntersection = FindProperty("_DepthIntersection_Toggle", props);
                 writeDepth = FindProperty("_WriteDepth_Toggle", props);
-                depthOffset = FindProperty("_DepthOffset", props);
-
+                
                 subregions = new LavaSubregionProperties[cMaxSubregions];
 
                 for (int i = 0; i < subregions.Length; i++)
@@ -296,6 +300,7 @@ namespace UnityEditor
                 materialEditor.ShaderProperty(properties.lavaReflectiveness, "Reflectiveness");
                 materialEditor.ShaderProperty(properties.lavaPerceptualRoughness, "Roughness");
                 materialEditor.ShaderProperty(properties.lavaSoftDepthSize, "Soft Depth Size");
+                materialEditor.ShaderProperty(properties.lavaTouchingSideBlendSize, "Touching Side Blend Size");
                 EditorGUI.indentLevel--;
             }
 
@@ -412,8 +417,9 @@ namespace UnityEditor
             if (sAdvancedOptionsFoldout)
             {
                 materialEditor.RenderQueueField();
-                materialEditor.EnableInstancingField();
-                materialEditor.DoubleSidedGIField();
+                materialEditor.ShaderProperty(properties.cullMode, "Culling Mode");
+                materialEditor.ShaderProperty(properties.depthOffset, "Depth Offset");
+
                 materialEditor.ShaderProperty(properties.toggleLighting, "Surface Lighting");
 
                 //these settings are only relevant when the material is transparent
@@ -430,7 +436,8 @@ namespace UnityEditor
                     materialEditor.ShaderProperty(properties.writeDepth, "Write Depth");
                 }
 
-                materialEditor.ShaderProperty(properties.depthOffset, "Depth Offset");
+                materialEditor.EnableInstancingField();
+                materialEditor.DoubleSidedGIField();
             }
 
             return EditorGUI.EndChangeCheck(); //return if anything was changed

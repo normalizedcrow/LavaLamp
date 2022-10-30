@@ -28,7 +28,8 @@
         _LavaMaxDriftSpeed("Max Drift Speed", Range(0.0, 5.0)) = 1.0
         _LavaReflectiveness("Reflectiveness", Range(0.0, 1.0)) = 0.0
         _LavaPerceptualRoughness("Roughness", Range(0.0, 1.0)) = 0.2
-        _LavaSoftDepthSize("Soft Depth Size", Range(0.0, 1.0)) = 0.01
+        _LavaSoftDepthSize("Soft Depth Size", Range(0.0, 10.0)) = 0.01
+        _LavaTouchingSideBlendSize("Touching Side Blend Size", Range(0.0, 1.0)) = 0.01
         
         //Subregion 0
         [PowerSlider(2.72)] _LavaScale0("Scale", Range(0.001, 2.0)) = 0.5
@@ -333,11 +334,12 @@
 
         //Advanced Rendering Options, used by the editor
         [IntRange] _LavaSubregionCount("Subregion Count", Range(1, 16)) = 1.0
+        [Enum(UnityEngine.Rendering.CullMode)] _CullMode("Culling Mode", Int) = 2
+        [IntRange] _DepthOffset("Depth Offset", Range(-1.0, 1.0)) = 0.0
         [Toggle] _Lighting_Toggle("Surface Lighting", Float) = 1.0
         [Toggle] _Transparency_Toggle("Transparent Background", Float) = 1.0
         [Toggle] _DepthIntersection_Toggle("Lava Depth Intersection", Float) = 1.0
         [Toggle] _WriteDepth_Toggle("Write Depth", Float) = 1.0
-        [IntRange] _DepthOffset("Depth Offset", Range(-1.0, 1.0)) = 0.0
         
         [HideInInspector] _ZWrite("ZWrite", Float) = 1.0
     }
@@ -358,6 +360,7 @@
         {
             Tags { "LightMode" = "ForwardBase" }
 
+            Cull [_CullMode]
             ZWrite [_ZWrite]
             ZTest LEqual
             Blend Off
@@ -387,6 +390,7 @@
             //this pass gets disabled by the ShaderGUI when lighting is disabled
             Tags { "LightMode" = "ForwardAdd" }
 
+            Cull [_CullMode]
             ZWrite Off
             ZTest LEqual
             Blend One One

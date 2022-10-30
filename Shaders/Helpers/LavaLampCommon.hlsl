@@ -63,7 +63,7 @@ float GetRoughness(float2 uv)
     return saturate(perceptualRoughness * perceptualRoughness);
 }
 
-float3 GetMappedNormal(float2 uv, float3 worldNormal, float3 worldTangent, float3 worldBitangent)
+float3 GetMappedNormal(float2 uv, float3 worldNormal, float3 worldTangent, float3 worldBitangent, bool isFrontFace)
 {
     float3 normalMap = UnpackNormal(_NormalMap.Sample(sampler_NormalMap, TRANSFORM_TEX(uv, _NormalMap)));
     normalMap.xy *= _NormalStrength;
@@ -73,7 +73,9 @@ float3 GetMappedNormal(float2 uv, float3 worldNormal, float3 worldTangent, float
     float3 mappedNormal = (worldNormal * normalMap.z)
                         + (worldTangent * normalMap.x)
                         + (worldBitangent * normalMap.y);
-    return normalize(mappedNormal);
+
+    //need to flip the normal when rendering a back face
+    return normalize(mappedNormal) * (isFrontFace ? 1.0 : -1.0);
 }
 
 bool IsBindDataSet()
@@ -377,7 +379,7 @@ LavaLampShadowPixelInput LavaLampShadowVertexShader(LavaLampVertexShadow v)
 
 //Pixel Shaders -----------------------------------------------------------------------------------
 
-float4 LavaLampBasePixelShader(LavaLampBasePixelInput input) : SV_Target
+float4 LavaLampBasePixelShader(LavaLampBasePixelInput input, bool isFrontFace : SV_IsFrontFace) : SV_Target
 {
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
     
@@ -387,7 +389,7 @@ float4 LavaLampBasePixelShader(LavaLampBasePixelInput input) : SV_Target
     float3 viewDirection = isOrthographic ? cameraForward : normalize(input.worldPos - _WorldSpaceCameraPos);
 
     float3 worldBitangent = cross(input.worldNormal, input.worldTangent.xyz) * input.worldTangent.w * unity_WorldTransformParams.w;
-    float3 mappedNormal = GetMappedNormal(input.uv, input.worldNormal, input.worldTangent.xyz, worldBitangent);
+    float3 mappedNormal = GetMappedNormal(input.uv, input.worldNormal, input.worldTangent.xyz, worldBitangent, isFrontFace);
 
     //refraction
     float3 incidence = viewDirection + (mappedNormal * saturate(-dot(viewDirection, mappedNormal)));
@@ -400,16 +402,16 @@ float4 LavaLampBasePixelShader(LavaLampBasePixelInput input) : SV_Target
     {
         dot(refractedViewDirection, cross(input.worldNormal, worldBitangent)),
         dot(refractedViewDirection, cross(worldBitangent, input.worldTangent.xyz)),
-        dot(refractedViewDirection, -worldBitangent * input.worldTangent.w * unity_WorldTransformParams.w)
+        dot(refractedViewDirection, cross(input.worldTangent.xyz, input.worldNormal))
     };
 
     //convert trace direction to bind pos space
-    float3 bindBitangent = cross(input.bindNormal, input.bindTangent) * input.worldTangent.w * unity_WorldTransformParams.w;
+    float3 bindBitangent = cross(input.bindNormal, input.bindTangent) * input.worldTangent.w;
 
     float3 traceDirection = (tangentTraceDirection.x * input.bindTangent)
                           + (tangentTraceDirection.y * input.bindNormal)
                           + (tangentTraceDirection.z * bindBitangent);
-    traceDirection = normalize(traceDirection);
+    traceDirection = normalize(traceDirection) * -input.worldTangent.w * unity_WorldTransformParams.w;
 
     //do a SDF trace to get the thickness of the mesh
     float thickness = GetModelThickness(input.bindPosition, traceDirection);
@@ -441,7 +443,7 @@ float4 LavaLampBasePixelShader(LavaLampBasePixelInput input) : SV_Target
     return float4(finalColor, 1.0);
 }
 
-float4 LavaLampLightingPixelShader(LavaLampLightingPixelInput input) : SV_Target
+float4 LavaLampLightingPixelShader(LavaLampLightingPixelInput input, bool isFrontFace : SV_IsFrontFace) : SV_Target
 {
     UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
     
@@ -452,7 +454,7 @@ float4 LavaLampLightingPixelShader(LavaLampLightingPixelInput input) : SV_Target
 
     //get the surface lighting
     float3 worldBitangent = cross(input.worldNormal, input.worldTangent.xyz) * input.worldTangent.w * unity_WorldTransformParams.w;
-    float3 mappedNormal = GetMappedNormal(input.uv, input.worldNormal, input.worldTangent.xyz, worldBitangent);
+    float3 mappedNormal = GetMappedNormal(input.uv, input.worldNormal, input.worldTangent.xyz, worldBitangent, isFrontFace);
     float roughness = GetRoughness(input.uv);
 
     UNITY_LIGHT_ATTENUATION(lightAttenuation, input, input.worldPos);
