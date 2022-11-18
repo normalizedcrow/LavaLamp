@@ -32,6 +32,10 @@ float3 _Tint;
 float _RefractiveIndex;
 float4 _BackgroundColor;
 
+bool _UseCustomReflectionProbe;
+TextureCube _CustomReflectionProbe;
+SamplerState sampler_CustomReflectionProbe;
+
 Texture2D<float4> _VertexBindPositions;
 float4 _VertexBindPositions_TexelSize;
 Texture2D<float4> _VertexBindNormals;
@@ -57,10 +61,10 @@ UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
 float GetRoughness(float2 uv)
 {
     float perceptualRoughness = _RoughnessMap.Sample(sampler_RoughnessMap, TRANSFORM_TEX(uv, _RoughnessMap));
-    perceptualRoughness = lerp(_MinPerceptualRoughness, _MaxPerceptualRoughness, perceptualRoughness);
+    perceptualRoughness = saturate(lerp(_MinPerceptualRoughness, _MaxPerceptualRoughness, perceptualRoughness));
 
     //unity parameterizes roughness as sqrt of the actual BRDF roughness, for a more linear change in appearence
-    return saturate(perceptualRoughness * perceptualRoughness);
+    return PerceptualRoughnessToRoughness(perceptualRoughness);
 }
 
 float3 GetMappedNormal(float2 uv, float3 worldNormal, float3 worldTangent, float3 worldBitangent, bool isFrontFace)
@@ -302,8 +306,8 @@ LavaLampBasePixelInput LavaLampBaseVertexShader(LavaLampVertex vertex)
     {
         //if there is no bind data, use object space instead
         output.bindPosition = vertex.position;
-        output.bindNormal = vertex.normal;
-        output.bindTangent = vertex.tangent;
+        output.bindNormal = normalize(vertex.normal);
+        output.bindTangent = float4(normalize(vertex.tangent.xyz), vertex.tangent.w);
         output.lavaIndex = 0;
     }
     
@@ -422,19 +426,33 @@ float4 LavaLampBasePixelShader(LavaLampBasePixelInput input, bool isFrontFace : 
     //evaluate the lava lamp
     float3 lampColor = GetLavaLampColor(input.bindPosition, traceDirection, thickness, backgroundColor, input.lavaIndex);
 
-    //get the glass surface lighting
+    //calculate the glass surface lighting
+
     float roughness = GetRoughness(input.uv);
 
-    float3 glassLighting = GetReflectionProbe(input.worldPos, mappedNormal, viewDirection, roughness)
-                         * AmbientSpecularStrength(mappedNormal, viewDirection, _Reflectiveness, roughness);
+    //get the cubemap reflection
+    float3 ambientSpecular = 0.0;
+
+    [branch]
+    if (_UseCustomReflectionProbe)
+    {
+        ambientSpecular = SampleReflectionProbe(_CustomReflectionProbe, sampler_CustomReflectionProbe, mappedNormal, viewDirection, roughness);
+    }
+    else
+    {
+        ambientSpecular = SampleBuiltInReflectionProbes(input.worldPos, mappedNormal, viewDirection, roughness);
+    }
+
+    float3 glassLighting = ambientSpecular * ReflectionProbeFresnel(mappedNormal, viewDirection, _Reflectiveness, roughness);
 
 #ifdef LAVA_LAMP_USE_LIGHTING
     UNITY_LIGHT_ATTENUATION(lightAttenuation, input, input.worldPos);
-    glassLighting += GetDirectLighting(input.worldPos, mappedNormal, viewDirection, roughness, _Reflectiveness, lightAttenuation);
+    float3 specularColor = GetDirectSpecularLighting(input.worldPos, mappedNormal, viewDirection, roughness, _Reflectiveness, lightAttenuation);
+    glassLighting += ClampBrightness(specularColor, _MaxSpecularHighlightBrightness);
 #endif
 
     //composite the final color
-    float3 glassTint = _Tint * _TintMap.Sample(sampler_TintMap, TRANSFORM_TEX(input.uv, _TintMap));
+    float3 glassTint = _Tint * _TintMap.Sample(sampler_TintMap, TRANSFORM_TEX(input.uv, _TintMap)).rgb;
     float3 finalColor = glassLighting + (lampColor * glassTint * (1.0 - _Reflectiveness));
 
     //apply fog (technically this will be applying fog to the background twice but it's not too noticeable in practice)
@@ -458,7 +476,8 @@ float4 LavaLampLightingPixelShader(LavaLampLightingPixelInput input, bool isFron
     float roughness = GetRoughness(input.uv);
 
     UNITY_LIGHT_ATTENUATION(lightAttenuation, input, input.worldPos);
-    float3 glassLighting = GetDirectLighting(input.worldPos, mappedNormal, viewDirection, roughness, _Reflectiveness, lightAttenuation);
+    float3 specularColor = GetDirectSpecularLighting(input.worldPos, mappedNormal, viewDirection, roughness, _Reflectiveness, lightAttenuation);
+    float3 glassLighting = ClampBrightness(specularColor, _MaxSpecularHighlightBrightness);
 
     //apply fog
     UNITY_APPLY_FOG(input.fogCoord, glassLighting);

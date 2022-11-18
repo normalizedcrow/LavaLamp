@@ -6,20 +6,19 @@
 #include "AutoLight.cginc"
 #include "UnityGlobalIllumination.cginc"
 
+float3 ClampBrightness(float3 color, float maxLuminance)
+{
+    float luminance = dot(color, float3(0.2126, 0.7152, 0.0722));
+    return color / max(1.0, luminance / maxLuminance);
+}
+
+//GGX formulas via: http://graphicrants.blogspot.com/2013/08/specular-brdf-reference.html
+
 //Schlick approximation
 inline float Fresnel(float vDotH, float reflectiveness)
 {
     return saturate(lerp(reflectiveness, 1.0, pow(1.0 - vDotH, 5.0)));
 }
-
-//gets the reflection strength for cubemaps (reduce fresnel strength on rough materials)
-inline float AmbientSpecularStrength(float3 surfaceNormal, float3 viewDirection, float reflectiveness, float roughness)
-{
-    float vDotN = saturate(-dot(surfaceNormal, viewDirection));
-    return saturate(lerp(reflectiveness, 1.0, pow(1.0 - vDotN, 5.0) * (1.0 - roughness)));
-}
-
-//GGX formulas via: http://graphicrants.blogspot.com/2013/08/specular-brdf-reference.html
 
 //isotropic Trowbridge-Reitz distribution
 inline float GGXDistribution(float nDotH, float roughness)
@@ -57,15 +56,17 @@ inline float GGXCookTorrance(float3 surfaceNormal, float3 viewDirection, float3 
 }
 
 //get direct light from the curent forward pass
-float3 GetDirectLighting(float3 worldPos, float3 normal, float3 viewDirection, float roughness, float reflectiveness, float attenuation)
+float3 GetDirectSpecularLighting(float3 worldPos, float3 normal, float3 viewDirection, float roughness, float reflectiveness, float attenuation)
 {
     //when _WorldSpaceLightPos0.w == 0 then _WorldSpaceLightPos0.xyz is a directional light direction
     float3 lightDirection = (_WorldSpaceLightPos0.w < 0.5) ? normalize(_WorldSpaceLightPos0.xyz) : normalize(_WorldSpaceLightPos0.xyz - worldPos.xyz);
-    return _LightColor0.rgb * attenuation * GGXCookTorrance(normal, viewDirection, lightDirection, roughness, reflectiveness);
+
+    //multiply by PI because Unity dosn't use the 1/PI normalization term for diffuse, so the specular brightness is instead increased to match it
+    return _LightColor0.rgb * attenuation * GGXCookTorrance(normal, viewDirection, lightDirection, roughness, reflectiveness) * UNITY_PI;
 }
 
 //sample unity's built in reflection probes
-float3 GetReflectionProbe(float3 worldPos, float3 normal, float3 viewDirection, float roughness)
+float3 SampleBuiltInReflectionProbes(float3 worldPos, float3 normal, float3 viewDirection, float roughness)
 {
     UnityGIInput d;
     d.worldPos = worldPos;
@@ -85,8 +86,30 @@ float3 GetReflectionProbe(float3 worldPos, float3 normal, float3 viewDirection, 
     d.probePosition[1] = unity_SpecCube1_ProbePosition;
 #endif
 
-    Unity_GlossyEnvironmentData g = UnityGlossyEnvironmentSetup(1.0 - roughness, d.worldViewDir, normal, 1.0);
+    float smoothness = 1.0 - RoughnessToPerceptualRoughness(roughness);
+    Unity_GlossyEnvironmentData g = UnityGlossyEnvironmentSetup(smoothness, d.worldViewDir, normal, 1.0);
+
     return UnityGI_IndirectSpecular(d, 1.0, g);
+}
+
+//sample a specified reflection probe
+float3 SampleReflectionProbe(TextureCube reflectionProbe, SamplerState reflectionProbeSampler, float3 normal, float3 viewDirection, float roughness)
+{
+    float3 reflectionVector = reflect(viewDirection, normal);
+
+    //match the behavior in Unity_GlossyEnvironment
+    float perceptualRoughness = RoughnessToPerceptualRoughness(roughness);
+    perceptualRoughness = perceptualRoughness * (1.7 - 0.7 * perceptualRoughness);
+    float mipLevel = perceptualRoughnessToMipmapLevel(perceptualRoughness);
+    
+    return reflectionProbe.SampleLevel(reflectionProbeSampler, reflectionVector, mipLevel).rgb;
+}
+
+//gets the reflection strength for cubemaps (reduce fresnel strength on rough materials)
+inline float ReflectionProbeFresnel(float3 surfaceNormal, float3 viewDirection, float reflectiveness, float roughness)
+{
+    float vDotN = saturate(-dot(surfaceNormal, viewDirection));
+    return saturate(lerp(reflectiveness, 1.0, pow(1.0 - vDotN, 5.0) * (1.0 - roughness)));
 }
 
 #endif

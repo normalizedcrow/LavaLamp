@@ -13,7 +13,9 @@
         _Tint("Tint Multiplier", Color) = (1.0, 1.0, 1.0, 1.0)
         _RefractiveIndex("Refractive Index", Range(1.0, 1.5)) = 1.1
         [HDR] _BackgroundColor("Background Color", Color) = (0.0, 0.0, 0.0, 0.0)
-
+        [NoScaleOffset] _CustomReflectionProbe("Custom Reflection Probe", Cube) = "black" {}
+        [Toggle] _UseCustomReflectionProbe("Use Custom Reflection Probe", Float) = 0.0
+        
         //Lava Shared Properties
         _LavaPadding("Padding", Range(0.01, 0.2)) = 0.05
         _LavaSmoothingFactor("Smoothing", Range(0.01, 0.5)) = 0.3
@@ -28,13 +30,13 @@
         _LavaMaxDriftSpeed("Max Drift Speed", Range(0.0, 5.0)) = 1.0
         _LavaReflectiveness("Reflectiveness", Range(0.0, 1.0)) = 0.0
         _LavaPerceptualRoughness("Roughness", Range(0.0, 1.0)) = 0.2
-        _LavaSoftDepthSize("Soft Depth Size", Range(0.0, 10.0)) = 0.01
+        _LavaSoftDepthSize("Soft Depth Intersection Size", Range(0.0, 10.0)) = 0.01
         _LavaTouchingSideBlendSize("Touching Side Blend Size", Range(0.0, 1.0)) = 0.01
         
         //Subregion 0
         [PowerSlider(2.72)] _LavaScale0("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight0("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight0("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight0("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight0("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor0("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor0("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale0("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -51,8 +53,8 @@
 
         //Subregion 1
         [PowerSlider(2.72)] _LavaScale1("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight1("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight1("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight1("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight1("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor1("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor1("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale1("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -69,8 +71,8 @@
 
         //Subregion 2
         [PowerSlider(2.72)] _LavaScale2("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight2("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight2("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight2("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight2("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor2("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor2("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale2("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -87,8 +89,8 @@
 
         //Subregion 3
         [PowerSlider(2.72)] _LavaScale3("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight3("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight3("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight3("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight3("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor3("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor3("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale3("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -105,8 +107,8 @@
 
         //Subregion 4
         [PowerSlider(2.72)] _LavaScale4("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight4("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight4("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight4("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight4("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor4("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor4("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale4("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -123,8 +125,8 @@
 
         //Subregion 5
         [PowerSlider(2.72)] _LavaScale5("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight5("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight5("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight5("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight5("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor5("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor5("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale5("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -141,8 +143,8 @@
 
         //Subregion 6
         [PowerSlider(2.72)] _LavaScale6("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight6("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight6("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight6("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight6("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor6("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor6("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale6("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -159,8 +161,8 @@
 
         //Subregion 7
         [PowerSlider(2.72)] _LavaScale7("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight7("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight7("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight7("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight7("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor7("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor7("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale7("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -177,8 +179,8 @@
 
         //Subregion 8
         [PowerSlider(2.72)] _LavaScale8("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight8("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight8("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight8("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight8("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor8("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor8("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale8("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -195,8 +197,8 @@
 
         //Subregion 9
         [PowerSlider(2.72)] _LavaScale9("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight9("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight9("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight9("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight9("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor9("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor9("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale9("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -213,8 +215,8 @@
 
         //Subregion 10
         [PowerSlider(2.72)] _LavaScale10("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight10("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight10("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight10("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight10("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor10("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor10("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale10("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -231,8 +233,8 @@
 
         //Subregion 11
         [PowerSlider(2.72)] _LavaScale11("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight11("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight11("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight11("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight11("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor11("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor11("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale11("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -249,8 +251,8 @@
 
         //Subregion 12
         [PowerSlider(2.72)] _LavaScale12("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight12("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight12("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight12("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight12("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor12("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor12("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale12("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -267,8 +269,8 @@
 
         //Subregion 13
         [PowerSlider(2.72)] _LavaScale13("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight13("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight13("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight13("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight13("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor13("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor13("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale13("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -285,8 +287,8 @@
 
         //Subregion 14
         [PowerSlider(2.72)] _LavaScale14("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight14("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight14("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight14("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight14("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor14("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor14("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale14("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -303,8 +305,8 @@
 
         //Subregion 15
         [PowerSlider(2.72)] _LavaScale15("Scale", Range(0.001, 2.0)) = 0.5
-        _LavaTopReservoirHeight15("Top Reservoir Height", Float) = 1.0
-        _LavaBottomReservoirHeight15("Bottom Reservoir Height", Float) = -1.0
+        _LavaTopReservoirHeight15("Top Reservoir Height", Float) = 5.0
+        _LavaBottomReservoirHeight15("Bottom Reservoir Height", Float) = -5.0
         _LavaCoreColor15("Lava Core Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _LavaEdgeColor15("Lava Edge Color", Color) = (0.75, 0.75, 0.75, 1.0)
         [PowerSlider(2.72)] _LavaColorThicknessScale15("Lave Color Thickness Scale", Range(0.0, 30.0)) = 5.0
@@ -332,10 +334,11 @@
         _SDFSize("SDF Size", Vector) = (1.0, 1.0, 1.0, 0.0)
         _MinThickness("Min Thickness", Range(0.0, 50.0)) = 0.01
 
-        //Advanced Rendering Options, used by the editor
+        //Advanced Rendering Options
         [IntRange] _LavaSubregionCount("Subregion Count", Range(1, 16)) = 1.0
         [Enum(UnityEngine.Rendering.CullMode)] _CullMode("Culling Mode", Int) = 2
         [IntRange] _DepthOffset("Depth Offset", Range(-1.0, 1.0)) = 0.0
+        _MaxSpecularHighlightBrightness("Max Specular Highlight Brightness", Float) = -1.0
         [Toggle] _Lighting_Toggle("Surface Lighting", Float) = 1.0
         [Toggle] _Transparency_Toggle("Transparent Background", Float) = 1.0
         [Toggle] _DepthIntersection_Toggle("Lava Depth Intersection", Float) = 1.0

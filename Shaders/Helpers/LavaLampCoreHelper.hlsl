@@ -11,6 +11,8 @@ static const float cNormalEPS = 0.05;
 
 //Global Constants --------------------------------------------------------------------------------
 
+float _MaxSpecularHighlightBrightness;
+
 float _LavaPadding;
 float _LavaSmoothingFactor;
 float _LavaVerticalSeparation;
@@ -155,7 +157,7 @@ float2 GetDistanceAndRadiusOfLavaBlob(float3 blobCoord, uint layerIndex)
 
     //scroll the columns vertically
     blobCoord.y -= scrollSpeed * _Time.y;
-    blobCoord.y -= (columnSeed % 1024) / 1024.0; //add some extra starting variation for if the lava speed is 0
+    blobCoord.y -= (columnSeed % 1024) / 1024.0; //add some extra starting variation for when the lava speed is 0
     blobCoord.y /= _LavaVerticalSeparation;
 
     //Per Blob Properties
@@ -163,16 +165,14 @@ float2 GetDistanceAndRadiusOfLavaBlob(float3 blobCoord, uint layerIndex)
     int3 blobIndex = floor(blobCoord);
     uint blobSeed = blobIndex.y ^ (blobIndex.z << 10) ^ (blobIndex.x << 20) ^ (layerIndex << 30);
 
-    //get the blob's radius
-    float blobRadius = RandomNormalized(blobSeed);
-
     //skip a certain percentage of blobs, just return arbitrarily far distance instead
-    if (blobRadius < _LavaSkipChance)
+    if (RandomNormalized(blobSeed) < _LavaSkipChance)
     {
         return float2(100000000.0, 0.0);
     }
 
-    blobRadius = saturate((blobRadius - _LavaSkipChance) / (1.0 - _LavaSkipChance)); //renormalize probability for non-skipped blobs
+    //get the blob's radius
+    float blobRadius = RandomNormalized(blobSeed);
     blobRadius = pow(blobRadius, exp(-_LavaSizeDistribution)); //adjust the curve of the size distribution
     blobRadius = lerp(_LavaMinSize, _LavaMaxSize, blobRadius); //remap the 0-1 range to the specified min and max
 
@@ -183,17 +183,21 @@ float2 GetDistanceAndRadiusOfLavaBlob(float3 blobCoord, uint layerIndex)
     //get the position of the blob
     float minDistanceFromSide = blobRadius + _LavaPadding; //can't offset the blob any closer than this to the edge of its bounding box
     float blobVerticalPosition = lerp(minDistanceFromSide, _LavaVerticalSeparation - minDistanceFromSide, RandomNormalized(blobSeed));
-    float blobRadialDistance = (0.5 - minDistanceFromSide) * RandomNormalized(blobSeed);
-    float blobAngularPosition = 2.0 * UNITY_PI * RandomNormalized(blobSeed);
-    
-    //add spiral drift
-    float driftSpeed = lerp(_LavaMinDriftSpeed, _LavaMaxDriftSpeed, RandomNormalized(blobSeed)) * scrollSpeed;
-    driftSpeed *= ((blobSeed & 1) == 0) ? 1.0 : -1.0; //make half of the blobs spin clockwise and half spin counterclockwise
-    blobAngularPosition += driftSpeed * 2.0 * _Time.y; //multiply by 2 because the max radius of motion is 0.5
 
-    float3 blobCenter = float3((cos(blobAngularPosition) * blobRadialDistance) + 0.5,
-                               blobVerticalPosition,
-                               (sin(blobAngularPosition) * blobRadialDistance) + 0.5);
+    //have the blob drift horizontally in an elipse 
+    float axisRotation = RandomNormalized(blobSeed) * 2.0 * UNITY_PI;
+    float eccentricity = (RandomNormalized(blobSeed) * 2.0) - 1.0; //rotation direction will be flipped half of the time
+    float2 majorAxis = float2(cos(axisRotation), sin(axisRotation));
+    float2 minorAxis = float2(-majorAxis.y, majorAxis.x) * eccentricity;
+    
+    float driftSpeed = lerp(_LavaMinDriftSpeed, _LavaMaxDriftSpeed, RandomNormalized(blobSeed)) * scrollSpeed; //scale drift speed to scroll speed
+    float driftProgression = driftSpeed * 2.0 * _Time.y; //multiply by 2 because the max radius of drift is 0.5
+    driftProgression += ((blobSeed % 1024) / 1024.0) * 2.0 * UNITY_PI; //add some extra starting variation for when the lava drift speed is 0
+    
+    float2 blobHorizontalPosition = (majorAxis * cos(driftProgression)) + (minorAxis * sin(driftProgression));
+    blobHorizontalPosition = lerp(minDistanceFromSide.xx, (1.0 - minDistanceFromSide).xx, (blobHorizontalPosition * 0.5) + 0.5);
+    
+    float3 blobCenter = float3(blobHorizontalPosition.x, blobVerticalPosition, blobHorizontalPosition.y);
 
     //calculate distance to the blob
     float3 blobRelativePosition = frac(blobCoord);
@@ -318,6 +322,7 @@ float3 GetLavaLighting(float3 viewDirection, LavaSurfaceParameters surfaceParame
     specularColor += GGXCookTorrance(surfaceParameters.normal, viewDirection, float3(0.0, 1.0, 0.0), roughness, _LavaReflectiveness) * topIlluminance;
 
     specularColor *= (4.0 * UNITY_PI); //scattering normalization term, multiply here instead for energy normalization with more intuitive brightness levels for the user
+    specularColor = ClampBrightness(specularColor, _MaxSpecularHighlightBrightness); //fine to do this for both lights at once because the highlights will never overlap
     specularColor *= saturate(1.0 - surfaceParameters.touchingSideFactor); //no specular on surfaces touching the sides
 
     //combine with energy conservation

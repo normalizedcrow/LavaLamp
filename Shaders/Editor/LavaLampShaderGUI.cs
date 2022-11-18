@@ -32,6 +32,8 @@ namespace UnityEditor
             public MaterialProperty tint;
             public MaterialProperty refractiveIndex;
             public MaterialProperty backgroundColor;
+            public MaterialProperty customReflectionProbe;
+            public MaterialProperty useCustomReflectionProbe;
 
             public MaterialProperty lavaPadding;
             public MaterialProperty lavaSmoothingFactor;
@@ -63,6 +65,7 @@ namespace UnityEditor
             public MaterialProperty lavaSubregionCount;
             public MaterialProperty cullMode;
             public MaterialProperty depthOffset;
+            public MaterialProperty maxSpecularHighlightBrightness;
             public MaterialProperty toggleLighting;
             public MaterialProperty toggleTransparency;
             public MaterialProperty toggleDepthIntersection;
@@ -82,6 +85,8 @@ namespace UnityEditor
                 tint = FindProperty("_Tint", props);
                 refractiveIndex = FindProperty("_RefractiveIndex", props);
                 backgroundColor = FindProperty("_BackgroundColor", props);
+                customReflectionProbe = FindProperty("_CustomReflectionProbe", props);
+                useCustomReflectionProbe = FindProperty("_UseCustomReflectionProbe", props);
 
                 lavaPadding = FindProperty("_LavaPadding", props);
                 lavaSmoothingFactor = FindProperty("_LavaSmoothingFactor", props);
@@ -113,6 +118,7 @@ namespace UnityEditor
                 lavaSubregionCount = FindProperty("_LavaSubregionCount", props);
                 cullMode = FindProperty("_CullMode", props);
                 depthOffset = FindProperty("_DepthOffset", props);
+                maxSpecularHighlightBrightness = FindProperty("_MaxSpecularHighlightBrightness", props);
                 toggleLighting = FindProperty("_Lighting_Toggle", props);
                 toggleTransparency = FindProperty("_Transparency_Toggle", props);
                 toggleDepthIntersection = FindProperty("_DepthIntersection_Toggle", props);
@@ -262,6 +268,7 @@ namespace UnityEditor
 
                 materialEditor.ShaderProperty(properties.refractiveIndex, "Refractive Index");
                 materialEditor.ShaderProperty(properties.backgroundColor, "Background Color");
+                materialEditor.TexturePropertySingleLine(new GUIContent("Reflection Probe Override"), properties.customReflectionProbe, properties.useCustomReflectionProbe);
             }
 
             EditorGUILayout.Space(12);
@@ -299,7 +306,7 @@ namespace UnityEditor
                 EditorGUI.indentLevel++;
                 materialEditor.ShaderProperty(properties.lavaReflectiveness, "Reflectiveness");
                 materialEditor.ShaderProperty(properties.lavaPerceptualRoughness, "Roughness");
-                materialEditor.ShaderProperty(properties.lavaSoftDepthSize, "Soft Depth Size");
+                materialEditor.ShaderProperty(properties.lavaSoftDepthSize, "Soft Depth Intersection Size");
                 materialEditor.ShaderProperty(properties.lavaTouchingSideBlendSize, "Touching Side Blend Size");
                 EditorGUI.indentLevel--;
             }
@@ -419,6 +426,7 @@ namespace UnityEditor
                 materialEditor.RenderQueueField();
                 materialEditor.ShaderProperty(properties.cullMode, "Culling Mode");
                 materialEditor.ShaderProperty(properties.depthOffset, "Depth Offset");
+                materialEditor.ShaderProperty(properties.maxSpecularHighlightBrightness, "Max Specular Highlight Brightness");
 
                 materialEditor.ShaderProperty(properties.toggleLighting, "Surface Lighting");
 
