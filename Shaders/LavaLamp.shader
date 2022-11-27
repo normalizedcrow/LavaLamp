@@ -341,7 +341,7 @@
         _MaxSpecularHighlightBrightness("Max Specular Highlight Brightness", Float) = -1.0
         [Toggle] _Lighting_Toggle("Surface Lighting", Float) = 1.0
         [Toggle] _Transparency_Toggle("Transparent Background", Float) = 1.0
-        [Toggle] _DepthIntersection_Toggle("Lava Depth Intersection", Float) = 1.0
+        [Toggle] _DepthIntersection_Toggle("Lava Depth Intersection", Float) = 0.0
         [Toggle] _WriteDepth_Toggle("Write Depth", Float) = 1.0
         
         [HideInInspector] _ZWrite("ZWrite", Float) = 1.0
@@ -349,7 +349,7 @@
 
     SubShader
     {
-        Tags { "Queue" = "Transparent" "IgnoreProjector" = "True" }
+        Tags { "Queue" = "Transparent" "DisableBatching" = "True" "IgnoreProjector" = "True" }
         Offset [_DepthOffset], [_DepthOffset]
 
         GrabPass

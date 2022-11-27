@@ -139,12 +139,16 @@ float GetBackgroundDepth(float4 clipPos)
                                 : normalizedDeviceCoordinates;
 
     //sample depth texture
-    float projectedDepth = SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, screenUV);
+    float projectedDepth = SAMPLE_DEPTH_TEXTURE_LOD(_CameraDepthTexture, float4(screenUV, 0.0, 0.0));
 
-    //check if the depth is the default unbound value or the far plane value
+    //check for a missing depth buffer by testing if the value is equal to the value of the default Unity placeholder texture
+    //won't work if the depth buffer only exists due to a directional light that doesn't render in mirrors or only renders in mirrors
+    //then the depth buffer will stay bound but will only be correct for the pass where the directional light renders
+    //(the "Water" and "PlayerLocal" layers don't render in mirrors, the "MirrorReflection" and "reserved2" layers only render in mirrors)
+    //also test for if the depth is the far plane (== 0) because it causes artifacts in mirrors for some reason
     bool isDepthValid = (projectedDepth != asfloat(0x3E5D0000)) && (projectedDepth > 0.0);
 
-    //handle skewed depth planes (such as in mirros), works for both orthographic and perspective projections
+    //handle skewed depth planes (such as in mirrors), works for both orthographic and perspective projections
     //(in VR the eye projection matrix can also skew the clip pos based on depth which is why the _m02 and _m12 terms
     //are here. that part isn't correct for orthographic projections but those terms should always be 0 then anyway)
     projectedDepth -= ((normalizedDeviceCoordinates.x + UNITY_MATRIX_P._m02) / UNITY_MATRIX_P._m00) * UNITY_MATRIX_P._m20;
