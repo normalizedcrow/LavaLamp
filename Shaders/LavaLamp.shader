@@ -11,10 +11,12 @@
         _NormalStrength("Normal Map Strength", Range(0.0, 1.0)) = 1.0
         _TintMap("Tint Map", 2D) = "white" {}
         _Tint("Tint Multiplier", Color) = (1.0, 1.0, 1.0, 1.0)
-        _RefractiveIndex("Refractive Index", Range(1.0, 1.5)) = 1.1
-        [HDR] _BackgroundColor("Background Color", Color) = (0.0, 0.0, 0.0, 0.0)
         [NoScaleOffset] _CustomReflectionProbe("Custom Reflection Probe", Cube) = "black" {}
         [Toggle] _UseCustomReflectionProbe("Use Custom Reflection Probe", Float) = 0.0
+        _RefractiveIndex("Refractive Index", Range(1.0, 1.5)) = 1.1
+        [HDR] _BackgroundColor("Background Color", Color) = (0.0, 0.0, 0.0, 0.0)
+        [NoScaleOffset] _BackgroundCubemap("Background Cubemap", Cube) = "black" {}
+        [Toggle] _UseBackgroundCubemap("Use Background Cubemap", Float) = 0.0
         
         //Lava Shared Properties
         _LavaPadding("Padding", Range(0.01, 0.2)) = 0.05
@@ -322,9 +324,10 @@
         _LavaFlowDirection15("Flow Direction", Vector) = (0.0, 1.0, 0.0, 0.0)
 
         //Mesh Data
-        [NoScaleOffset] _VertexBindPositions("Bind Positions Texture", 2D) = "black" {}
-        [NoScaleOffset] _VertexBindNormals("Bind Normals Texture", 2D) = "black" {}
-        [NoScaleOffset] _VertexBindTangents("Bind Tangents Texture", 2D) = "black" {}
+        [Enum(Disabled, 0, Enabled, 1, Auto, 3)] _BindDataMode("Use Mesh Bind Data", Int) = 3
+        [Enum(UV2, 1, UV3, 2, UV4, 3, UV5, 4, UV6, 5, UV7, 6, UV8, 7)] _BindPositionsSlot("Bind Positions UV Channel", Int) = 5
+        [Enum(UV2, 1, UV3, 2, UV4, 3, UV5, 4, UV6, 5, UV7, 6, UV8, 7)] _BindNormalsSlot("Bind Normals UV Channel", Int) = 6
+        [Enum(UV2, 1, UV3, 2, UV4, 3, UV5, 4, UV6, 5, UV7, 6, UV8, 7)] _BindTangentsSlot("Bind Tangents UV Channel", Int) = 7
         _WorldRecale("World Rescale", Float) = 1.0
 
         //Volume Data
@@ -351,11 +354,11 @@
     {
         Tags { "Queue" = "Transparent" "DisableBatching" = "True" "IgnoreProjector" = "True" }
         Offset [_DepthOffset], [_DepthOffset]
-
+        
         GrabPass
         {
             Tags { "LightMode" = "Always" } //this pass gets disabled by the ShaderGUI when transparency is disabled
-
+            
             "_LavaLampGrabTexture" //only do a single grab pass for all lava lamps for the sake of performance
         }
 
@@ -378,7 +381,13 @@
             #pragma shader_feature_local LAVA_LAMP_USE_TRANSPARENCY
             #pragma shader_feature_local LAVA_LAMP_DEPTH_INTERSECTION
             #pragma shader_feature_local LAVA_LAMP_USE_LIGHTING
+            
             #pragma shader_feature_local __ LAVA_LAMP_SUBREGION_COUNT_2 LAVA_LAMP_SUBREGION_COUNT_3 LAVA_LAMP_SUBREGION_COUNT_4 LAVA_LAMP_SUBREGION_COUNT_5 LAVA_LAMP_SUBREGION_COUNT_6 LAVA_LAMP_SUBREGION_COUNT_7 LAVA_LAMP_SUBREGION_COUNT_8 LAVA_LAMP_SUBREGION_COUNT_9 LAVA_LAMP_SUBREGION_COUNT_10 LAVA_LAMP_SUBREGION_COUNT_11 LAVA_LAMP_SUBREGION_COUNT_12 LAVA_LAMP_SUBREGION_COUNT_13 LAVA_LAMP_SUBREGION_COUNT_14 LAVA_LAMP_SUBREGION_COUNT_15 LAVA_LAMP_SUBREGION_COUNT_16
+            
+            #pragma shader_feature_local LAVA_LAMP_BIND_DATA_DISABLED LAVA_LAMP_BIND_DATA_ENABLED LAVA_LAMP_BIND_DATA_AUTO
+            #pragma shader_feature_local LAVA_LAMP_BIND_POSITIONS_SLOT_1 LAVA_LAMP_BIND_POSITIONS_SLOT_2  LAVA_LAMP_BIND_POSITIONS_SLOT_3 LAVA_LAMP_BIND_POSITIONS_SLOT_4 LAVA_LAMP_BIND_POSITIONS_SLOT_5 LAVA_LAMP_BIND_POSITIONS_SLOT_6 LAVA_LAMP_BIND_POSITIONS_SLOT_7
+            #pragma shader_feature_local LAVA_LAMP_BIND_NORMALS_SLOT_1 LAVA_LAMP_BIND_NORMALS_SLOT_2 LAVA_LAMP_BIND_NORMALS_SLOT_3 LAVA_LAMP_BIND_NORMALS_SLOT_4 LAVA_LAMP_BIND_NORMALS_SLOT_5 LAVA_LAMP_BIND_NORMALS_SLOT_6 LAVA_LAMP_BIND_NORMALS_SLOT_7
+            #pragma shader_feature_local LAVA_LAMP_BIND_TANGENTS_SLOT_1 LAVA_LAMP_BIND_TANGENTS_SLOT_2 LAVA_LAMP_BIND_TANGENTS_SLOT_3 LAVA_LAMP_BIND_TANGENTS_SLOT_4 LAVA_LAMP_BIND_TANGENTS_SLOT_5 LAVA_LAMP_BIND_TANGENTS_SLOT_6 LAVA_LAMP_BIND_TANGENTS_SLOT_7
             
             #pragma vertex LavaLampBaseVertexShader
             #pragma fragment LavaLampBasePixelShader
@@ -408,6 +417,9 @@
             
             #pragma shader_feature_local __ LAVA_LAMP_SUBREGION_COUNT_2 LAVA_LAMP_SUBREGION_COUNT_3 LAVA_LAMP_SUBREGION_COUNT_4 LAVA_LAMP_SUBREGION_COUNT_5 LAVA_LAMP_SUBREGION_COUNT_6 LAVA_LAMP_SUBREGION_COUNT_7 LAVA_LAMP_SUBREGION_COUNT_8 LAVA_LAMP_SUBREGION_COUNT_9 LAVA_LAMP_SUBREGION_COUNT_10 LAVA_LAMP_SUBREGION_COUNT_11 LAVA_LAMP_SUBREGION_COUNT_12 LAVA_LAMP_SUBREGION_COUNT_13 LAVA_LAMP_SUBREGION_COUNT_14 LAVA_LAMP_SUBREGION_COUNT_15 LAVA_LAMP_SUBREGION_COUNT_16
             
+            #pragma shader_feature_local LAVA_LAMP_BIND_DATA_DISABLED LAVA_LAMP_BIND_DATA_ENABLED LAVA_LAMP_BIND_DATA_AUTO
+            #pragma shader_feature_local LAVA_LAMP_BIND_POSITIONS_SLOT_1 LAVA_LAMP_BIND_POSITIONS_SLOT_2  LAVA_LAMP_BIND_POSITIONS_SLOT_3 LAVA_LAMP_BIND_POSITIONS_SLOT_4 LAVA_LAMP_BIND_POSITIONS_SLOT_5 LAVA_LAMP_BIND_POSITIONS_SLOT_6 LAVA_LAMP_BIND_POSITIONS_SLOT_7
+            
             #pragma vertex LavaLampLightingVertexShader
             #pragma fragment LavaLampLightingPixelShader
             
@@ -420,24 +432,27 @@
         {
             Name "ShadowCaster"
             Tags { "LightMode" = "ShadowCaster" }
-
+            
             ZWrite On
             ZTest LEqual
             Cull Off
-
+            
             HLSLPROGRAM
-
+            
             #pragma target 5.0
             #pragma multi_compile_shadowcaster
             #pragma multi_compile_instancing
-
+            
             #pragma shader_feature_local __ LAVA_LAMP_SUBREGION_COUNT_2 LAVA_LAMP_SUBREGION_COUNT_3 LAVA_LAMP_SUBREGION_COUNT_4 LAVA_LAMP_SUBREGION_COUNT_5 LAVA_LAMP_SUBREGION_COUNT_6 LAVA_LAMP_SUBREGION_COUNT_7 LAVA_LAMP_SUBREGION_COUNT_8 LAVA_LAMP_SUBREGION_COUNT_9 LAVA_LAMP_SUBREGION_COUNT_10 LAVA_LAMP_SUBREGION_COUNT_11 LAVA_LAMP_SUBREGION_COUNT_12 LAVA_LAMP_SUBREGION_COUNT_13 LAVA_LAMP_SUBREGION_COUNT_14 LAVA_LAMP_SUBREGION_COUNT_15 LAVA_LAMP_SUBREGION_COUNT_16
-
+            
+            #pragma shader_feature_local LAVA_LAMP_BIND_DATA_DISABLED LAVA_LAMP_BIND_DATA_ENABLED LAVA_LAMP_BIND_DATA_AUTO
+            #pragma shader_feature_local LAVA_LAMP_BIND_POSITIONS_SLOT_1 LAVA_LAMP_BIND_POSITIONS_SLOT_2  LAVA_LAMP_BIND_POSITIONS_SLOT_3 LAVA_LAMP_BIND_POSITIONS_SLOT_4 LAVA_LAMP_BIND_POSITIONS_SLOT_5 LAVA_LAMP_BIND_POSITIONS_SLOT_6 LAVA_LAMP_BIND_POSITIONS_SLOT_7
+            
             #pragma vertex LavaLampShadowVertexShader
             #pragma fragment LavaLampShadowPixelShader
             
             #include "Helpers/LavaLampCommon.hlsl"
-
+            
             ENDHLSL
         }
     }

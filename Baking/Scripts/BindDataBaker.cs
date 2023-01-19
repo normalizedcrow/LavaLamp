@@ -5,6 +5,17 @@ using UnityEngine.Rendering;
 
 public class BindDataBaker : MonoBehaviour
 {
+    public enum BindDataUVSlot
+    {
+        UV2 = 1,
+        UV3 = 2,
+        UV4 = 3,
+        UV5 = 4,
+        UV6 = 5,
+        UV7 = 6,
+        UV8 = 7
+    };
+
     public const int cMaxMaskColors = 16;
 
     //saved editor parameters
@@ -17,19 +28,19 @@ public class BindDataBaker : MonoBehaviour
     [SerializeField] private Color[] mMaskColors = new Color[cMaxMaskColors];
     [SerializeField] private Color mInvalidMaskColor = Color.black;
 
+    [SerializeField] BindDataUVSlot mBindPositionsSlot = BindDataUVSlot.UV6;
+    [SerializeField] BindDataUVSlot mBindNormalsSlot = BindDataUVSlot.UV7;
+    [SerializeField] BindDataUVSlot mBindTangentsSlot = BindDataUVSlot.UV8;
+
     //shaders
     [SerializeField] private Shader mBakeBindDataShader;
     [SerializeField] private Shader mVisualizationShader;
 
-    //GPU output textures
-    private RenderTexture mBindPositionsTexture = null;
-    private RenderTexture mBindNormalsTexture = null;
-    private RenderTexture mBindTangentsTexture = null;
-
-    //CPU output textures
-    private Texture2D mBindPositionsOutputTexture = null;
-    private Texture2D mBindNormalsOutputTexture = null;
-    private Texture2D mBindTangentsOutputTexture = null;
+    //Output
+    private Mesh mOutputMesh = null;
+    private ComputeBuffer mBindPositionsBuffer = null;
+    private ComputeBuffer mBindNormalsBuffer = null;
+    private ComputeBuffer mBindTangentsBuffer = null;
 
     //bake rendering
     private CommandBuffer mBakeBindDataCommandBuffer = null;
@@ -48,7 +59,9 @@ public class BindDataBaker : MonoBehaviour
 
     //Bake Functions
 
-    public bool SaveSettings(GameObject newTarget, Renderer newTargetRenderer, Mesh newTargetMesh, Texture2D newMasktexture, int newMaskColorCount, Color[] newMaskColors, Color newInvalidMaskColor)
+    public bool SaveSettings(GameObject newTarget, Renderer newTargetRenderer, Mesh newTargetMesh,
+                             Texture2D newMasktexture, int newMaskColorCount, Color[] newMaskColors, Color newInvalidMaskColor,
+                             BindDataUVSlot newBindPositionsSlot, BindDataUVSlot newBindNormalsSlot, BindDataUVSlot newBindTangentsSlot)
     {
         bool didAnythingChange = false;
 
@@ -76,21 +89,21 @@ public class BindDataBaker : MonoBehaviour
             didAnythingChange = true;
         }
 
-        if(newMaskColorCount != mMaskColorCount)
+        if (newMaskColorCount != mMaskColorCount)
         {
             mMaskColorCount = Mathf.Max(1, Mathf.Min(newMaskColorCount, cMaxMaskColors));
             didAnythingChange = true;
         }
 
         //only accept the new array of colors if it is the correct length
-        if(newMaskColors.Length == mMaskColors.Length && !newMaskColors.SequenceEqual(mMaskColors))
+        if (newMaskColors.Length == mMaskColors.Length && !newMaskColors.SequenceEqual(mMaskColors))
         {
             newMaskColors.CopyTo(mMaskColors, 0);
             didAnythingChange = true;
         }
 
         //make sure the mask colors array stays the correct length
-        if(mMaskColors.Length != cMaxMaskColors)
+        if (mMaskColors.Length != cMaxMaskColors)
         {
             mMaskColors = new Color[cMaxMaskColors];
             didAnythingChange = true;
@@ -102,6 +115,24 @@ public class BindDataBaker : MonoBehaviour
             didAnythingChange = true;
         }
 
+        if (newBindPositionsSlot != mBindPositionsSlot)
+        {
+            mBindPositionsSlot = newBindPositionsSlot;
+            didAnythingChange = true;
+        }
+
+        if (newBindNormalsSlot != mBindNormalsSlot)
+        {
+            mBindNormalsSlot = newBindNormalsSlot;
+            didAnythingChange = true;
+        }
+
+        if (newBindTangentsSlot != mBindTangentsSlot)
+        {
+            mBindTangentsSlot = newBindTangentsSlot;
+            didAnythingChange = true;
+        }
+
         return didAnythingChange;
     }
 
@@ -109,7 +140,7 @@ public class BindDataBaker : MonoBehaviour
     {
         if (PrepareBake())
         {
-            BakeTextures();
+            BakeMesh();
         }
     }
 
@@ -126,33 +157,31 @@ public class BindDataBaker : MonoBehaviour
             mBakeBindDataCommandBuffer = null;
         }
 
-        if(mVisualizationCommandBuffer != null)
+        if (mVisualizationCommandBuffer != null)
         {
             mVisualizationCommandBuffer.Release();
             mVisualizationCommandBuffer = null;
         }
 
-        if (mBindPositionsTexture != null)
+        if (mBindPositionsBuffer != null)
         {
-            mBindPositionsTexture.Release();
-            mBindPositionsTexture = null;
+            mBindPositionsBuffer.Release();
+            mBindPositionsBuffer = null;
         }
 
-        if (mBindNormalsTexture != null)
+        if (mBindNormalsBuffer != null)
         {
-            mBindNormalsTexture.Release();
-            mBindNormalsTexture = null;
+            mBindNormalsBuffer.Release();
+            mBindNormalsBuffer = null;
         }
 
-        if (mBindTangentsTexture != null)
+        if (mBindTangentsBuffer != null)
         {
-            mBindTangentsTexture.Release();
-            mBindTangentsTexture = null;
+            mBindTangentsBuffer.Release();
+            mBindTangentsBuffer = null;
         }
 
-        mBindPositionsOutputTexture = null;
-        mBindNormalsOutputTexture = null;
-        mBindTangentsOutputTexture = null;
+        mOutputMesh = null;
     }
 
     //Helpers
@@ -167,10 +196,8 @@ public class BindDataBaker : MonoBehaviour
             return false;
         }
 
-        //find the smallest square texture that can fit all of the verts
-        int textureWidth = Mathf.NextPowerOfTwo(Mathf.CeilToInt(Mathf.Sqrt(mTargetMesh.vertexCount)));
-
-        if (textureWidth <= 1)
+        //all output UV channels must be different
+        if (mBindPositionsSlot == mBindNormalsSlot || mBindPositionsSlot == mBindTangentsSlot || mBindNormalsSlot == mBindTangentsSlot)
         {
             return false;
         }
@@ -178,23 +205,13 @@ public class BindDataBaker : MonoBehaviour
         mBakeBindDataMaterial = new Material(mBakeBindDataShader);
         mVisualizationMaterial = new Material(mVisualizationShader);
 
-        //create the output rendertextures
-        RenderTextureDescriptor textureDesc = new RenderTextureDescriptor(textureWidth, textureWidth, RenderTextureFormat.ARGBHalf, 0);
-        textureDesc.useMipMap = false;
-        textureDesc.autoGenerateMips = false;
-        textureDesc.dimension = UnityEngine.Rendering.TextureDimension.Tex2D;
-        textureDesc.enableRandomWrite = true;
-        textureDesc.width = textureWidth;
-        textureDesc.height = textureWidth;
-
-        mBindPositionsTexture = new RenderTexture(textureDesc);
-        mBindNormalsTexture = new RenderTexture(textureDesc);
-        mBindTangentsTexture = new RenderTexture(textureDesc);
+        mBindPositionsBuffer = new ComputeBuffer(mTargetMesh.vertexCount, 4 * sizeof(float));
+        mBindNormalsBuffer = new ComputeBuffer(mTargetMesh.vertexCount, 4 * sizeof(float));
+        mBindTangentsBuffer = new ComputeBuffer(mTargetMesh.vertexCount, 4 * sizeof(float));
 
         //create command buffer for writing out the bind data
         mBakeBindDataCommandBuffer = new CommandBuffer();
         mBakeBindDataCommandBuffer.Clear();
-        mBakeBindDataCommandBuffer.SetGlobalInt("_OutputTextureWidth", textureWidth);
         mBakeBindDataCommandBuffer.SetGlobalVector("_BakeMeshRootPosition", mTargetObject.transform.position);
 
         //create command buffer for rendering the visualization
@@ -206,7 +223,7 @@ public class BindDataBaker : MonoBehaviour
         {
             //convert the mask colors to linear color space
             Vector4[] maskColors = new Vector4[cMaxMaskColors];
-            for(int i = 0; i < cMaxMaskColors; i++)
+            for (int i = 0; i < cMaxMaskColors; i++)
             {
                 maskColors[i] = mMaskColors[i].linear;
             }
@@ -238,17 +255,17 @@ public class BindDataBaker : MonoBehaviour
             mVisualizationCommandBuffer.SetGlobalVectorArray("_MaskColors", maskColors);
         }
         
-        mBakeBindDataCommandBuffer.SetRandomWriteTarget(1, mBindPositionsTexture);
-        mBakeBindDataCommandBuffer.SetRandomWriteTarget(2, mBindNormalsTexture);
-        mBakeBindDataCommandBuffer.SetRandomWriteTarget(3, mBindTangentsTexture);
+        mBakeBindDataCommandBuffer.SetRandomWriteTarget(1, mBindPositionsBuffer);
+        mBakeBindDataCommandBuffer.SetRandomWriteTarget(2, mBindNormalsBuffer);
+        mBakeBindDataCommandBuffer.SetRandomWriteTarget(3, mBindTangentsBuffer);
 
         //render every submesh
-        for(int subMesh = 0; subMesh < mTargetMesh.subMeshCount; subMesh++)
+        for (int subMesh = 0; subMesh < mTargetMesh.subMeshCount; subMesh++)
         {
             mBakeBindDataCommandBuffer.DrawRenderer(mTargetRenderer, mBakeBindDataMaterial, subMesh);
             mVisualizationCommandBuffer.DrawRenderer(mTargetRenderer, mVisualizationMaterial, subMesh);
         }
-        
+
         mBakeBindDataCommandBuffer.ClearRandomWriteTargets();
 
         mIsBakeReady = true;
@@ -256,37 +273,26 @@ public class BindDataBaker : MonoBehaviour
         return true;
     }
 
-    private void BakeTextures()
+    private void BakeMesh()
     {
+        //run the baking compute shader
         Graphics.ExecuteCommandBuffer(mBakeBindDataCommandBuffer);
 
-        mBindPositionsOutputTexture = CreateCPUTexture(mBindPositionsTexture);
-        mBindNormalsOutputTexture = CreateCPUTexture(mBindNormalsTexture);
-        mBindTangentsOutputTexture = CreateCPUTexture(mBindTangentsTexture);
-    }
+        //make a deep copy of the mesh
+        mOutputMesh = Instantiate(mTargetMesh);
+        mOutputMesh.name = mTargetMesh.name;
 
-    private Texture2D CreateCPUTexture(RenderTexture texture)
-    {
-        //copy the contents of a RenderTexture texture into a Texture2D
-        if (texture != null && texture.IsCreated())
-        {
-            int width = texture.width;
-            int height = texture.height;
+        //copy the baked vertex data into the appropriate uv channels 
+        Vector4[] bindData = new Vector4[mBindPositionsBuffer.count];
 
-            Texture2D tex = new Texture2D(width, height, TextureFormat.RGBAHalf, false);
-            tex.wrapMode = TextureWrapMode.Clamp;
-            tex.filterMode = FilterMode.Point;
-            tex.anisoLevel = 0;
+        mBindPositionsBuffer.GetData(bindData);
+        mOutputMesh.SetUVs((int)mBindPositionsSlot, bindData);
 
-            // Read screen contents into the texture
-            Graphics.SetRenderTarget(texture);
-            tex.ReadPixels(new Rect(0, 0, width, height), 0, 0);
-            tex.Apply();
+        mBindNormalsBuffer.GetData(bindData);
+        mOutputMesh.SetUVs((int)mBindNormalsSlot, bindData);
 
-            return tex;
-        }
-
-        return null;
+        mBindTangentsBuffer.GetData(bindData);
+        mOutputMesh.SetUVs((int)mBindTangentsSlot, bindData);
     }
 
     //Visualization
@@ -338,26 +344,28 @@ public class BindDataBaker : MonoBehaviour
         return mInvalidMaskColor;
     }
 
-    public Texture2D GetBindPositions()
+    public BindDataUVSlot GetBindPositionsUVSlot()
     {
-        return mBindPositionsOutputTexture;
+        return mBindPositionsSlot;
     }
 
-    public Texture2D GetBindNormals()
+    public BindDataUVSlot GetBindNormalsUVSlot()
     {
-        return mBindNormalsOutputTexture;
+        return mBindNormalsSlot;
     }
 
-    public Texture2D GetBindTangents()
+    public BindDataUVSlot GetBindTangentsUVSlot()
     {
-        return mBindTangentsOutputTexture;
+        return mBindTangentsSlot;
+    }
+
+    public Mesh GetMeshWithBindData()
+    {
+        return mOutputMesh;
     }
 
     public bool IsBakeFinished()
     {
-        return mIsBakeReady
-               && mBindPositionsOutputTexture != null
-               && mBindNormalsOutputTexture != null
-               && mBindTangentsOutputTexture != null;
+        return mIsBakeReady && mOutputMesh != null;
     }
 }

@@ -15,8 +15,7 @@
             #include "Helpers/MeshBakingHelper.hlsl"
 
             static const uint cMaxMaskColors = 16;
-
-            uint _OutputTextureWidth;
+            
             uint _MaskColorCount;
             float3 _InvalidMaskColor;
             float3 _MaskColors[cMaxMaskColors];
@@ -24,9 +23,9 @@
             Texture2D<float4> _MaskTexture;
             SamplerState sampler_MaskTexture;
 
-            RWTexture2D<float4> _PositionsOutputTexture : register(u1);
-            RWTexture2D<float4> _NormalsOutputTexture : register(u2);
-            RWTexture2D<float4> _TangentsOutputTexture : register(u3);
+            RWBuffer<float4> _PositionsOutputBuffer : register(u1);
+            RWBuffer<float4> _NormalsOutputBuffer : register(u2);
+            RWBuffer<float4> _TangentsOutputBuffer : register(u3);
 
             struct VertexInput
             {
@@ -42,7 +41,7 @@
                 float3 sampledMaskColor = _MaskTexture.SampleLevel(sampler_MaskTexture, vertex.uv, 0);
 
                 //start with the invalid color and an invalid mask index
-                float closestMask = 1000.0;
+                uint closestMask = 1000;
                 float closestMaskDistance = length(sampledMaskColor - _InvalidMaskColor);
 
                 //iterate through all the mask colors and find which one is the closest to the sampled color
@@ -62,13 +61,10 @@
                 float3 bindNormal = normalize(mul(float4(vertex.normal, 0.0), unity_WorldToObject).xyz);
                 float3 bindTangent = normalize(mul(unity_ObjectToWorld, float4(vertex.tangent.xyz, 0.0)).xyz);
 
-                //convert the vertex index to a pixel coord
-                uint2 outputCoord = uint2(vertex.id % _OutputTextureWidth, vertex.id / _OutputTextureWidth);
-
-                //write out all the values the textures
-                _PositionsOutputTexture[outputCoord] = float4(bindPosition, closestMask);
-                _NormalsOutputTexture[outputCoord] = float4(bindNormal, 0.0);
-                _TangentsOutputTexture[outputCoord] = float4(bindTangent, vertex.tangent.w * unity_WorldTransformParams.w);
+                //write out all the values to buffers
+                _PositionsOutputBuffer[vertex.id] = float4(bindPosition, closestMask);
+                _NormalsOutputBuffer[vertex.id] = float4(bindNormal, 0.5);
+                _TangentsOutputBuffer[vertex.id] = float4(bindTangent, vertex.tangent.w * unity_WorldTransformParams.w);
 
                 return 0.0;
             }

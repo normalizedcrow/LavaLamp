@@ -5,9 +5,13 @@ using UnityEditor;
 [CustomEditor(typeof(BindDataBaker))]
 public class BindDataBakerEditor : Editor
 {
+    private const int cHighestUvChannel = 7;
+
     private static bool sEnableDebugVisualization = true;
     private static List<Material> sMaterialsToUpdate = new List<Material>(0);
+    
 
+    private int mTargetRendererIndex = 0;
     private string mErrorMessage = "";
 
     public override void OnInspectorGUI()
@@ -21,6 +25,10 @@ public class BindDataBakerEditor : Editor
             EditorGUILayout.Space(12);
 
             DebugPanel();
+
+            EditorGUILayout.Space(12);
+
+            UpdateRendererPanel();
 
             EditorGUILayout.Space(12);
 
@@ -73,7 +81,6 @@ public class BindDataBakerEditor : Editor
             List<Renderer> targetRenderersList = new List<Renderer>();
             List<Mesh> targetMeshesList = new List<Mesh>();
             List<string> targetRendererNames = new List<string>();
-            int targetRendererIndex = 0;
 
             //for each renderer on the target
             foreach (Renderer currentRenderer in newTargetObject.GetComponentsInChildren<Renderer>())
@@ -108,20 +115,35 @@ public class BindDataBakerEditor : Editor
                     if (currentRenderer == baker.GetTargetRenderer() && currentMesh == baker.GetTargetMesh())
                     {
                         //set the index to this selection
-                        targetRendererIndex = targetRenderersList.Count - 1;
+                        mTargetRendererIndex = targetRenderersList.Count - 1;
                     }
                 }
             }
 
-            ///choose the target renderer and mesh with a popup menu
-            targetRendererIndex = EditorGUILayout.Popup("Renderer", targetRendererIndex, targetRendererNames.ToArray());
+            //choose the target renderer and mesh with a popup menu
+            mTargetRendererIndex = Mathf.Max(0, Mathf.Min(mTargetRendererIndex, targetRenderersList.Count - 1));
+            mTargetRendererIndex = EditorGUILayout.Popup("Renderer", mTargetRendererIndex, targetRendererNames.ToArray());
 
-            if(targetRenderersList.Count > targetRendererIndex && targetMeshesList.Count > targetRendererIndex)
+            if(mTargetRendererIndex >= 0 && targetRenderersList.Count > mTargetRendererIndex && targetMeshesList.Count > mTargetRendererIndex)
             {
-                newTargetRenderer = targetRenderersList[targetRendererIndex];
-                newTargetMesh = targetMeshesList[targetRendererIndex];
+                newTargetRenderer = targetRenderersList[mTargetRendererIndex];
+                newTargetMesh = targetMeshesList[mTargetRendererIndex];
             }
         }
+
+        EditorGUILayout.Space(12);
+
+        //Get the UV channels that the bind data will be stored in
+        BindDataBaker.BindDataUVSlot bindPositionsSlot = (BindDataBaker.BindDataUVSlot)EditorGUILayout.EnumPopup("Bind Positions Output UV Channel", baker.GetBindPositionsUVSlot());
+        BindDataBaker.BindDataUVSlot bindNormalsSlot = (BindDataBaker.BindDataUVSlot)EditorGUILayout.EnumPopup("Bind Normals Output UV Channel", baker.GetBindNormalsUVSlot());
+        BindDataBaker.BindDataUVSlot bindTangentsSlot = (BindDataBaker.BindDataUVSlot)EditorGUILayout.EnumPopup("Bind Tangents Output UV Channel", baker.GetBindTangentsUVSlot());
+
+        if(bindPositionsSlot == bindNormalsSlot || bindPositionsSlot == bindTangentsSlot || bindNormalsSlot == bindTangentsSlot)
+        {
+            EditorGUILayout.HelpBox("Output uv channels should not overlap!", MessageType.Error);
+        }
+
+        EditorGUILayout.Space(12);
 
         //get the mask data
         Texture2D newMask = (Texture2D)EditorGUILayout.ObjectField("Subregion Mask Texture", baker.GetMaskTexture(), typeof(Texture2D), true);
@@ -178,7 +200,7 @@ public class BindDataBakerEditor : Editor
         }
 
         //update all the changed settings
-        if (baker.SaveSettings(newTargetObject, newTargetRenderer, newTargetMesh, newMask, newMaskColorCount, newMaskColors, newInvalidMaskColor))
+        if (baker.SaveSettings(newTargetObject, newTargetRenderer, newTargetMesh, newMask, newMaskColorCount, newMaskColors, newInvalidMaskColor, bindPositionsSlot, bindNormalsSlot, bindTangentsSlot))
         {
             EditorUtility.SetDirty(baker);
         }
@@ -207,26 +229,23 @@ public class BindDataBakerEditor : Editor
     {
         BindDataBaker baker = (BindDataBaker)target;
 
-        //display the baked textures
-        GUILayout.Label("Result Bind Textures", EditorStyles.boldLabel);
+        //display the baked mesh
+        GUILayout.Label("Result Mesh With Bind Data", EditorStyles.boldLabel);
         EditorGUI.indentLevel++;
-        EditorGUILayout.ObjectField("Positions", baker.GetBindPositions(), typeof(Texture2D), false);
-        EditorGUILayout.ObjectField("Normals", baker.GetBindNormals(), typeof(Texture2D), false);
-        EditorGUILayout.ObjectField("Tangents", baker.GetBindTangents(), typeof(Texture2D), false);
+        EditorGUILayout.ObjectField("Baked Mesh", baker.GetMeshWithBindData(), typeof(Mesh), false);
         EditorGUI.indentLevel--;
 
-        if (GUILayout.Button("Save Bind Data Textures"))
+        if (GUILayout.Button("Save Mesh With Bind Data"))
         {
-            string filepath = EditorUtility.SaveFilePanel("Save SDF Texture", "", "Bind", "");
+            Mesh bindDataMesh = baker.GetMeshWithBindData();
 
-            //save all 3 textures with the same start to their name and different suffixes
+            string filepath = EditorUtility.SaveFilePanel("Save Mesh", "", bindDataMesh.name, "asset");
+
             if (filepath.Length > 0)
             {
                 filepath = "Assets" + filepath.Remove(0, Application.dataPath.Length);
 
-                AssetDatabase.CreateAsset(baker.GetBindPositions(), filepath + "Positions.asset");
-                AssetDatabase.CreateAsset(baker.GetBindNormals(), filepath + "Normals.asset");
-                AssetDatabase.CreateAsset(baker.GetBindTangents(), filepath + "Tangents.asset");
+                AssetDatabase.CreateAsset(bindDataMesh, filepath);
             }
         }
     }
@@ -246,7 +265,7 @@ public class BindDataBakerEditor : Editor
     {
         BindDataBaker baker = (BindDataBaker)target;
 
-        GUILayout.Label("Auto Update Materials", EditorStyles.boldLabel);
+        GUILayout.Label("Update Material Bind Data Configurations", EditorStyles.boldLabel);
 
         EditorGUI.indentLevel++;
 
@@ -278,13 +297,88 @@ public class BindDataBakerEditor : Editor
         if (GUILayout.Button("Update Materials"))
         {
             //record an undo for all the materials
-            Undo.RecordObjects(sMaterialsToUpdate.ToArray(), "Update Materials");
+            Undo.RecordObjects(sMaterialsToUpdate.ToArray(), "Update Material Bind Data Configurations");
+
+            int bindPositionsSlot = (int)baker.GetBindPositionsUVSlot();
+            int bindNormalsSlot = (int)baker.GetBindNormalsUVSlot();
+            int bindTangentsSlot = (int)baker.GetBindTangentsUVSlot();
 
             foreach (Material material in sMaterialsToUpdate)
             {
-                material.SetTexture("_VertexBindPositions", baker.GetBindPositions());
-                material.SetTexture("_VertexBindNormals", baker.GetBindNormals());
-                material.SetTexture("_VertexBindTangents", baker.GetBindTangents());
+                //set the parameters that drive the keywords in the material editor
+                material.SetInt("_BindPositionsSlot", bindPositionsSlot);
+                material.SetInt("_BindNormalsSlot", bindNormalsSlot);
+                material.SetInt("_BindTangentsSlot", bindTangentsSlot);
+
+                //set the appropriate keywords for the uv slot that each set of bind data will come from
+                for (int i = 1; i <= cHighestUvChannel; i++)
+                {
+                    if (i == bindPositionsSlot)
+                    {
+                        material.EnableKeyword("LAVA_LAMP_BIND_POSITIONS_SLOT_" + i);
+                    }
+                    else
+                    {
+                        material.DisableKeyword("LAVA_LAMP_BIND_POSITIONS_SLOT_" + i);
+                    }
+
+                    if (i == bindNormalsSlot)
+                    {
+                        material.EnableKeyword("LAVA_LAMP_BIND_NORMALS_SLOT_" + i);
+                    }
+                    else
+                    {
+                        material.DisableKeyword("LAVA_LAMP_BIND_NORMALS_SLOT_" + i);
+                    }
+
+                    if (i == bindTangentsSlot)
+                    {
+                        material.EnableKeyword("LAVA_LAMP_BIND_TANGENTS_SLOT_" + i);
+                    }
+                    else
+                    {
+                        material.DisableKeyword("LAVA_LAMP_BIND_TANGENTS_SLOT_" + i);
+                    }
+                }
+            }
+        }
+    }
+
+    private void UpdateRendererPanel()
+    {
+        BindDataBaker baker = (BindDataBaker)target;
+
+        GUILayout.Label("Update Target Renderer", EditorStyles.boldLabel);
+
+        if (GUILayout.Button("Replace Mesh"))
+        {
+            Mesh newMesh = baker.GetMeshWithBindData();
+            Renderer targetRenderer = baker.GetTargetRenderer();
+            
+            if(newMesh == null || targetRenderer == null)
+            {
+                return;
+            }
+
+            //Meshes are handled differently for SkinnedMeshRenderers and MeshRenderers. Other renderers are not supported
+            if (targetRenderer is SkinnedMeshRenderer)
+            {
+                //record an undo
+                Undo.RecordObject(targetRenderer, "Replace Mesh");
+
+                ((SkinnedMeshRenderer)targetRenderer).sharedMesh = newMesh;
+            }
+            else if(targetRenderer is MeshRenderer)
+            {
+                MeshFilter targetMeshFilter = targetRenderer.GetComponent<MeshFilter>();
+
+                if(targetMeshFilter != null)
+                {
+                    //record an undo
+                    Undo.RecordObject(targetMeshFilter, "Replace Mesh");
+
+                    targetMeshFilter.sharedMesh = newMesh;
+                }
             }
         }
     }

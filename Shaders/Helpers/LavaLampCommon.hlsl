@@ -29,19 +29,16 @@ SamplerState sampler_TintMap;
 float4 _TintMap_ST;
 float3 _Tint;
 
-float _RefractiveIndex;
-float4 _BackgroundColor;
-
 bool _UseCustomReflectionProbe;
 TextureCube _CustomReflectionProbe;
 SamplerState sampler_CustomReflectionProbe;
 
-Texture2D<float4> _VertexBindPositions;
-float4 _VertexBindPositions_TexelSize;
-Texture2D<float4> _VertexBindNormals;
-float4 _VertexBindNormals_TexelSize;
-Texture2D<float4> _VertexBindTangents;
-float4 _VertexBindTangents_TexelSize;
+float _RefractiveIndex;
+float4 _BackgroundColor;
+
+bool _UseBackgroundCubemap;
+TextureCube _BackgroundCubemap;
+SamplerState sampler_BackgroundCubemap;
 
 Texture3D<float> _SDFTexture;
 SamplerState sampler_SDFTexture;
@@ -82,12 +79,17 @@ float3 GetMappedNormal(float2 uv, float3 worldNormal, float3 worldTangent, float
     return normalize(mappedNormal) * (isFrontFace ? 1.0 : -1.0);
 }
 
-bool IsBindDataSet()
+bool IsBindDataSet(float4 bindPosition, float4 bindNormal, float4 bindTangent)
 {
-    //if the texture is 1x1 then it is the default texture, also all the bind data textures should be equal in size
-    return any(_VertexBindPositions_TexelSize != 1.0)
-        && all(_VertexBindPositions_TexelSize == _VertexBindNormals_TexelSize)
-        && all(_VertexBindPositions_TexelSize == _VertexBindTangents_TexelSize);
+#if defined(LAVA_LAMP_BIND_DATA_AUTO)
+    //when the UV channels bind data can be stored in are unbound they are all set to the same value by default
+    //this also detects misconfigurations where different sets of data are set to the save UV channel
+    return any(bindPosition != bindNormal) && any(bindPosition != bindTangent) && any(bindNormal != bindTangent);
+#elif defined(LAVA_LAMP_BIND_DATA_ENABLED)
+    return true;
+#else
+    return false;
+#endif
 }
 
 float GetModelThickness(float3 startPosition, float3 marchDirection)
@@ -165,6 +167,14 @@ float GetBackgroundDepth(float4 clipPos)
 
 float3 GetBackground(float3 worldPos, float3 traceDirection, inout float distanceToExit)
 {
+    float4 backgroundColor = _BackgroundColor;
+
+    [branch]
+    if (_UseBackgroundCubemap)
+    {
+        backgroundColor *= _BackgroundCubemap.Sample(sampler_BackgroundCubemap, traceDirection);
+    }
+
 #ifdef LAVA_LAMP_USE_TRANSPARENCY
     //determine the point where we exit the model, that's where we should sample the background
     float3 exitPos = worldPos + (traceDirection * distanceToExit * _WorldRecale);
@@ -200,11 +210,11 @@ float3 GetBackground(float3 worldPos, float3 traceDirection, inout float distanc
 
     //alpha blend _BackgroundColor over the actual background when the background isn't inside the lava lamp
     return lerp(UNITY_SAMPLE_SCREENSPACE_TEXTURE(_LavaLampGrabTexture, screenUV).rgb,
-                _BackgroundColor.rgb,
-                isBackgroundInsideLamp ? 0.0 : _BackgroundColor.a);
+                backgroundColor.rgb,
+                isBackgroundInsideLamp ? 0.0 : backgroundColor.a);
 #else
     //if the lamp isn't transparent just return a solid color
-    return _BackgroundColor.rgb;
+    return backgroundColor.rgb;
 #endif
 }
 
@@ -216,7 +226,58 @@ struct LavaLampVertex
     float3 normal : NORMAL;
     float4 tangent : TANGENT;
     float2 uv : TEXCOORD0;
-    uint id : SV_VertexID;
+
+#if defined(LAVA_LAMP_BIND_DATA_ENABLED) || defined(LAVA_LAMP_BIND_DATA_AUTO)
+
+#if defined(LAVA_LAMP_BIND_POSITIONS_SLOT_1)
+    float4 bindPositionAndSubregion : TEXCOORD1;
+#elif defined(LAVA_LAMP_BIND_POSITIONS_SLOT_2)
+    float4 bindPositionAndSubregion : TEXCOORD2;
+#elif defined(LAVA_LAMP_BIND_POSITIONS_SLOT_3)
+    float4 bindPositionAndSubregion : TEXCOORD3;
+#elif defined(LAVA_LAMP_BIND_POSITIONS_SLOT_4)
+    float4 bindPositionAndSubregion : TEXCOORD4;
+#elif defined(LAVA_LAMP_BIND_POSITIONS_SLOT_5)
+    float4 bindPositionAndSubregion : TEXCOORD5;
+#elif defined(LAVA_LAMP_BIND_POSITIONS_SLOT_6)
+    float4 bindPositionAndSubregion : TEXCOORD6;
+#else
+    float4 bindPositionAndSubregion : TEXCOORD7;
+#endif
+
+#if defined(LAVA_LAMP_BIND_NORMALS_SLOT_1)
+    float4 bindNormal : TEXCOORD1;
+#elif defined(LAVA_LAMP_BIND_NORMALS_SLOT_2)
+    float4 bindNormal : TEXCOORD2;
+#elif defined(LAVA_LAMP_BIND_NORMALS_SLOT_3)
+    float4 bindNormal : TEXCOORD3;
+#elif defined(LAVA_LAMP_BIND_NORMALS_SLOT_4)
+    float4 bindNormal : TEXCOORD4;
+#elif defined(LAVA_LAMP_BIND_NORMALS_SLOT_5)
+    float4 bindNormal : TEXCOORD5;
+#elif defined(LAVA_LAMP_BIND_NORMALS_SLOT_6)
+    float4 bindNormal : TEXCOORD6;
+#else
+    float4 bindNormal : TEXCOORD7;
+#endif
+
+#if defined(LAVA_LAMP_BIND_TANGENTS_SLOT_1)
+    float4 bindTangent : TEXCOORD1;
+#elif defined(LAVA_LAMP_BIND_TANGENTS_SLOT_2)
+    float4 bindTangent : TEXCOORD2;
+#elif defined(LAVA_LAMP_BIND_TANGENTS_SLOT_3)
+    float4 bindTangent : TEXCOORD3;
+#elif defined(LAVA_LAMP_BIND_TANGENTS_SLOT_4)
+    float4 bindTangent : TEXCOORD4;
+#elif defined(LAVA_LAMP_BIND_TANGENTS_SLOT_5)
+    float4 bindTangent : TEXCOORD5;
+#elif defined(LAVA_LAMP_BIND_TANGENTS_SLOT_6)
+    float4 bindTangent : TEXCOORD6;
+#else
+    float4 bindTangent : TEXCOORD7;
+#endif
+
+#endif
 
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
@@ -225,7 +286,26 @@ struct LavaLampVertexShadow
 {
     float4 vertex : POSITION;
     float3 normal : NORMAL;
-    uint id : SV_VertexID;
+
+#if defined(LAVA_LAMP_BIND_DATA_ENABLED) || defined(LAVA_LAMP_BIND_DATA_AUTO)
+    
+#if defined(LAVA_LAMP_BIND_POSITIONS_SLOT_1)
+    float4 bindPositionAndSubregion : TEXCOORD1;
+#elif defined(LAVA_LAMP_BIND_POSITIONS_SLOT_2)
+    float4 bindPositionAndSubregion : TEXCOORD2;
+#elif defined(LAVA_LAMP_BIND_POSITIONS_SLOT_3)
+    float4 bindPositionAndSubregion : TEXCOORD3;
+#elif defined(LAVA_LAMP_BIND_POSITIONS_SLOT_4)
+    float4 bindPositionAndSubregion : TEXCOORD4;
+#elif defined(LAVA_LAMP_BIND_POSITIONS_SLOT_5)
+    float4 bindPositionAndSubregion : TEXCOORD5;
+#elif defined(LAVA_LAMP_BIND_POSITIONS_SLOT_6)
+    float4 bindPositionAndSubregion : TEXCOORD6;
+#else
+    float4 bindPositionAndSubregion : TEXCOORD7;
+#endif
+
+#endif
 
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
@@ -287,26 +367,23 @@ LavaLampBasePixelInput LavaLampBaseVertexShader(LavaLampVertex vertex)
     output.worldNormal = normalize(mul(float4(vertex.normal, 0.0), unity_WorldToObject).xyz);
     output.worldTangent = float4(normalize(mul(unity_ObjectToWorld, float4(vertex.tangent.xyz, 0.0)).xyz), vertex.tangent.w);
     
+#if defined(LAVA_LAMP_BIND_DATA_ENABLED) || defined(LAVA_LAMP_BIND_DATA_AUTO)
     [branch]
-    if(IsBindDataSet())
+    if(IsBindDataSet(vertex.bindPositionAndSubregion, vertex.bindNormal, vertex.bindTangent))
     {
-        //convert the vertex id to a pixel coordinate
-        uint2 vertexBakeCoord = uint2(vertex.id % _VertexBindPositions_TexelSize.z, (vertex.id / _VertexBindPositions_TexelSize.z) % _VertexBindPositions_TexelSize.w);
-
-        float4 positionAndLavaIndex = _VertexBindPositions[vertexBakeCoord];
-        output.bindPosition = positionAndLavaIndex.xyz;
-        output.lavaIndex = positionAndLavaIndex.w;
-
-        output.bindNormal = _VertexBindNormals[vertexBakeCoord].xyz;
-        output.bindTangent = _VertexBindTangents[vertexBakeCoord];
+        output.bindPosition = vertex.bindPositionAndSubregion.xyz;
+        output.bindNormal = vertex.bindNormal.xyz;
+        output.bindTangent = vertex.bindTangent;
+        output.lavaIndex = vertex.bindPositionAndSubregion.w;
         
         //if the index is invalid just throw out this vertex
-        if (positionAndLavaIndex.w >= NUM_LAVA_LAMP_SUBREGIONS)
+        if (output.lavaIndex >= NUM_LAVA_LAMP_SUBREGIONS)
         {
             output.pos = asfloat(~0); //NaN
         }
     }
     else
+#endif
     {
         //if there is no bind data, use object space instead
         output.bindPosition = vertex.position;
@@ -340,19 +417,13 @@ LavaLampLightingPixelInput LavaLampLightingVertexShader(LavaLampVertex vertex)
     output.worldNormal = normalize(mul(float4(vertex.normal, 0.0), unity_WorldToObject).xyz);
     output.worldTangent = float4(normalize(mul(unity_ObjectToWorld, float4(vertex.tangent.xyz, 0.0)).xyz), vertex.tangent.w);
 
-    [branch]
-    if (IsBindDataSet())
+    //if the index is invalid just throw out this vertex (with models that don't have bind data set, the w component should default to 0)
+#if defined(LAVA_LAMP_BIND_DATA_ENABLED) || defined(LAVA_LAMP_BIND_DATA_AUTO)
+    if (vertex.bindPositionAndSubregion.w >= NUM_LAVA_LAMP_SUBREGIONS)
     {
-        //convert the vertex id to a pixel coordinate
-        uint2 vertexBakeCoord = uint2(vertex.id % _VertexBindPositions_TexelSize.z, (vertex.id / _VertexBindPositions_TexelSize.z) % _VertexBindPositions_TexelSize.w);
-        float lavaIndex = _VertexBindPositions[vertexBakeCoord].w;
-
-        //if the index is invalid just throw out this vertex
-        if (lavaIndex >= NUM_LAVA_LAMP_SUBREGIONS)
-        {
-            output.pos = asfloat(~0); //NaN
-        }
+        output.pos = asfloat(~0); //NaN
     }
+#endif
 
     UNITY_TRANSFER_FOG(output, output.pos);
     UNITY_TRANSFER_SHADOW(output, vertex.lightmapUV); // pass shadow coordinates to pixel shader
@@ -368,19 +439,13 @@ LavaLampShadowPixelInput LavaLampShadowVertexShader(LavaLampVertexShadow v)
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
     TRANSFER_SHADOW_CASTER_NORMALOFFSET(output)
 
-    [branch]
-    if (IsBindDataSet())
+#if defined(LAVA_LAMP_BIND_DATA_ENABLED) || defined(LAVA_LAMP_BIND_DATA_AUTO)
+    //if the index is invalid just throw out this vertex (with models that don't have bind data set, the w component should default to 0)
+    if (v.bindPositionAndSubregion.w >= NUM_LAVA_LAMP_SUBREGIONS)
     {
-        //convert the vertex id to a pixel coordinate
-        uint2 vertexBakeCoord = uint2(v.id % _VertexBindPositions_TexelSize.z, (v.id / _VertexBindPositions_TexelSize.z) % _VertexBindPositions_TexelSize.w);
-        float lavaIndex = _VertexBindPositions[vertexBakeCoord].w;
-
-        //if the index is invalid just throw out this vertex
-        if (lavaIndex >= NUM_LAVA_LAMP_SUBREGIONS)
-        {
-            output.pos = asfloat(~0); //NaN
-        }
+        output.pos = asfloat(~0); //NaN
     }
+#endif
 
     return output;
 }

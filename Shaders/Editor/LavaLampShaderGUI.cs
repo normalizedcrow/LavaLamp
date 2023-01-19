@@ -7,6 +7,7 @@ namespace UnityEditor
     internal class LavaLampShaderGUI : ShaderGUI
     {
         private const int cMaxSubregions = 16;
+        private const int cHighestUvChannel = 7;
 
         private static bool sGlassFoldout = true;
         private static bool sMeshDataFoldout = true;
@@ -30,10 +31,12 @@ namespace UnityEditor
             public MaterialProperty normalStrength;
             public MaterialProperty tintMap;
             public MaterialProperty tint;
-            public MaterialProperty refractiveIndex;
-            public MaterialProperty backgroundColor;
             public MaterialProperty customReflectionProbe;
             public MaterialProperty useCustomReflectionProbe;
+            public MaterialProperty refractiveIndex;
+            public MaterialProperty backgroundColor;
+            public MaterialProperty backgroundCubemap;
+            public MaterialProperty useBackgroundCubemap;
 
             public MaterialProperty lavaPadding;
             public MaterialProperty lavaSmoothingFactor;
@@ -51,9 +54,10 @@ namespace UnityEditor
             public MaterialProperty lavaSoftDepthSize;
             public MaterialProperty lavaTouchingSideBlendSize;
 
-            public MaterialProperty vertexBindPositions;
-            public MaterialProperty vertexBindNormals;
-            public MaterialProperty vertexBindTangents;
+            public MaterialProperty bindDataMode;
+            public MaterialProperty bindPositionsSlot;
+            public MaterialProperty bindNormalsSlot;
+            public MaterialProperty bindTangentsSlot;
             public MaterialProperty worldRecale;
 
             public MaterialProperty sdfTexture;
@@ -83,10 +87,12 @@ namespace UnityEditor
                 normalStrength = FindProperty("_NormalStrength", props);
                 tintMap = FindProperty("_TintMap", props);
                 tint = FindProperty("_Tint", props);
-                refractiveIndex = FindProperty("_RefractiveIndex", props);
-                backgroundColor = FindProperty("_BackgroundColor", props);
                 customReflectionProbe = FindProperty("_CustomReflectionProbe", props);
                 useCustomReflectionProbe = FindProperty("_UseCustomReflectionProbe", props);
+                refractiveIndex = FindProperty("_RefractiveIndex", props);
+                backgroundColor = FindProperty("_BackgroundColor", props);
+                backgroundCubemap = FindProperty("_BackgroundCubemap", props); ;
+                useBackgroundCubemap = FindProperty("_UseBackgroundCubemap", props); ;
 
                 lavaPadding = FindProperty("_LavaPadding", props);
                 lavaSmoothingFactor = FindProperty("_LavaSmoothingFactor", props);
@@ -104,9 +110,10 @@ namespace UnityEditor
                 lavaSoftDepthSize = FindProperty("_LavaSoftDepthSize", props);
                 lavaTouchingSideBlendSize = FindProperty("_LavaTouchingSideBlendSize", props);
 
-                vertexBindPositions = FindProperty("_VertexBindPositions", props);
-                vertexBindNormals = FindProperty("_VertexBindNormals", props);
-                vertexBindTangents = FindProperty("_VertexBindTangents", props);
+                bindDataMode = FindProperty("_BindDataMode", props);
+                bindPositionsSlot = FindProperty("_BindPositionsSlot", props);
+                bindNormalsSlot = FindProperty("_BindNormalsSlot", props);
+                bindTangentsSlot = FindProperty("_BindTangentsSlot", props);
                 worldRecale = FindProperty("_WorldRecale", props);
 
                 sdfTexture = FindProperty("_SDFTexture", props);
@@ -266,9 +273,10 @@ namespace UnityEditor
                 materialEditor.TextureScaleOffsetProperty(properties.tintMap);
                 EditorGUI.indentLevel--;
 
+                materialEditor.TexturePropertySingleLine(new GUIContent("Reflection Probe Override"), properties.customReflectionProbe, properties.useCustomReflectionProbe);
                 materialEditor.ShaderProperty(properties.refractiveIndex, "Refractive Index");
                 materialEditor.ShaderProperty(properties.backgroundColor, "Background Color");
-                materialEditor.TexturePropertySingleLine(new GUIContent("Reflection Probe Override"), properties.customReflectionProbe, properties.useCustomReflectionProbe);
+                materialEditor.TexturePropertySingleLine(new GUIContent("Background Cubemap"), properties.backgroundCubemap, properties.useBackgroundCubemap);
             }
 
             EditorGUILayout.Space(12);
@@ -396,9 +404,26 @@ namespace UnityEditor
 
             if (sMeshDataFoldout)
             {
-                materialEditor.ShaderProperty(properties.vertexBindPositions, "Bind Positions Texture");
-                materialEditor.ShaderProperty(properties.vertexBindNormals, "Bind Normals Texture");
-                materialEditor.ShaderProperty(properties.vertexBindTangents, "Bind Tangents Texture");
+                materialEditor.ShaderProperty(properties.bindDataMode, "Use Mesh Bind Data");
+
+                //if bind data is not disabled
+                if (properties.bindDataMode.floatValue != 0.0f)
+                {
+                    EditorGUI.indentLevel++;
+                    materialEditor.ShaderProperty(properties.bindPositionsSlot, "Bind Positions UV Channel");
+                    materialEditor.ShaderProperty(properties.bindNormalsSlot, "Bind Normals UV Channel");
+                    materialEditor.ShaderProperty(properties.bindTangentsSlot, "Bind Tangents UV Channel");
+                    EditorGUI.indentLevel--;
+
+                    //display an error if any of the bind data uv channels overlap
+                    if (properties.bindPositionsSlot.floatValue == properties.bindNormalsSlot.floatValue ||
+                        properties.bindPositionsSlot.floatValue == properties.bindTangentsSlot.floatValue ||
+                        properties.bindNormalsSlot.floatValue == properties.bindTangentsSlot.floatValue)
+                    {
+                        EditorGUILayout.HelpBox("Bind data UV channels should not overlap!", MessageType.Error);
+                    }
+                }
+
                 materialEditor.ShaderProperty(properties.worldRecale, "World Rescale");
             }
 
@@ -453,8 +478,8 @@ namespace UnityEditor
 
         private static void SetKeywordsAndPasses(Material material)
         {
-            //clamp the subregion count to an integer in correct range
-            int subregionCount = Math.Min(Math.Max(1, material.GetInt("_LavaSubregionCount")), cMaxSubregions);
+            //clamp the subregion count to the supported range of subregions
+            int subregionCount = Math.Min(Math.Max(1, material.GetInt("_LavaSubregionCount")), cMaxSubregions); 
 
             //set the appropriate subregion keyword, start at 2 because count 1 is the default value when no keyword is set
             for (int i = 2; i <= cMaxSubregions; i++)
@@ -466,6 +491,67 @@ namespace UnityEditor
                 else
                 {
                     material.DisableKeyword("LAVA_LAMP_SUBREGION_COUNT_" + i);
+                }
+            }
+
+            //set the keywords to control the bind data mode, if there are any conflicting uv channels for bind data force it to be disabled
+            int bindDataMode = material.GetInt("_BindDataMode");
+            
+            if (bindDataMode == 0)
+            {
+                material.EnableKeyword("LAVA_LAMP_BIND_DATA_DISABLED");
+
+                material.DisableKeyword("LAVA_LAMP_BIND_DATA_ENABLED");
+                material.DisableKeyword("LAVA_LAMP_BIND_DATA_AUTO");
+            }
+            else if(bindDataMode == 1)
+            {
+                material.EnableKeyword("LAVA_LAMP_BIND_DATA_ENABLED");
+
+                material.DisableKeyword("LAVA_LAMP_BIND_DATA_DISABLED");
+                material.DisableKeyword("LAVA_LAMP_BIND_DATA_AUTO");
+            }
+            else
+            {
+                material.EnableKeyword("LAVA_LAMP_BIND_DATA_AUTO");
+
+                material.DisableKeyword("LAVA_LAMP_BIND_DATA_DISABLED");
+                material.DisableKeyword("LAVA_LAMP_BIND_DATA_ENABLED");
+            }
+
+            //clamp the uv slots to the actual range of available uv channels
+            int bindPositionsSlot = Math.Min(Math.Max(1, material.GetInt("_BindPositionsSlot")), cHighestUvChannel); 
+            int bindNormalsSlot = Math.Min(Math.Max(1, material.GetInt("_BindNormalsSlot")), cHighestUvChannel);
+            int bindTangentsSlot = Math.Min(Math.Max(1, material.GetInt("_BindTangentsSlot")), cHighestUvChannel);
+
+            //set the appropriate keywords for the uv slots that each set of bind data will come from
+            for (int i = 1; i <= cHighestUvChannel; i++)
+            {
+                if(i == bindPositionsSlot)
+                {
+                    material.EnableKeyword("LAVA_LAMP_BIND_POSITIONS_SLOT_" + i);
+                }
+                else
+                {
+                    material.DisableKeyword("LAVA_LAMP_BIND_POSITIONS_SLOT_" + i);
+                }
+
+                if (i == bindNormalsSlot)
+                {
+                    material.EnableKeyword("LAVA_LAMP_BIND_NORMALS_SLOT_" + i);
+                }
+                else
+                {
+                    material.DisableKeyword("LAVA_LAMP_BIND_NORMALS_SLOT_" + i);
+                }
+
+                if (i == bindTangentsSlot)
+                {
+                    material.EnableKeyword("LAVA_LAMP_BIND_TANGENTS_SLOT_" + i);
+                }
+                else
+                {
+                    material.DisableKeyword("LAVA_LAMP_BIND_TANGENTS_SLOT_" + i);
                 }
             }
 
